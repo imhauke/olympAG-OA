@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+*.egg-info/
+.DS_Store
+# Word lock files
+~$*.docx
+# Scratch outputs
+/out/
+# Claude Code local-only settings
+.claude/settings.local.json
+.claude/.state/
