@@ -3,7 +3,7 @@
 > Read this first, then `AGENTS.md` (rules). Written so any agent (Claude, Codex, Cursor, Gemini…)
 > with **zero prior context** can continue. Updated at every commit checkpoint.
 
-**Last updated:** 2026-11-17 · after step 2 (package layer) · **Deadline:** Thu 2026-11-19
+**Last updated:** 2026-11-17 · after step 3 (block index + run-aware ops) · **Deadline:** Thu 2026-11-19
 
 ## 1. The task
 Olymp technical case study: a **LangGraph agent (Python)** that edits existing `.docx` files from
@@ -21,8 +21,8 @@ deploy to a subdomain of janguzman.com.
 |---|------|-------|
 | 1 | Scaffold: uv, ruff/mypy/pytest, Makefile, CI, hooks, AGENTS/CLAUDE.md | ✅ done |
 | 2 | Package layer (`document/package.py`) + no-op round-trip tests + fixture builders | ✅ done |
-| 3 | Block index + run-aware ops (`blocks.py`, `runs.py`, `ops.py`) + unit & property tests | ⏭ next |
-| 4 | Integrity checker (`integrity.py`) + corruption tests + CLI `inspect` / `verify` | ☐ |
+| 3 | Block index + run-aware ops (`blocks.py`, `runs.py`, `ops.py`) + unit & property tests | ✅ done |
+| 4 | Integrity checker (`integrity.py`) + corruption tests + CLI `inspect` / `verify` | ⏭ next |
 | 5 | LangGraph graph, tools, prompts + fake-LLM graph tests + CLI `edit` | ☐ |
 | 6 | First live run (Gemini free tier), fix provider gotchas | ☐ |
 | 7 | Synthetic samples (`samples/`), committed outputs verified in CI | ☐ |
@@ -48,9 +48,17 @@ CI: `.github/workflows/ci.yml` runs the same gate on every push to `main` (no LL
   and malformed XML parts are all rejected as `PackageError` (one error type for callers/API).
 - "Untouched" means identical **uncompressed part bytes** + same name/order/ZipInfo metadata;
   compressed streams may differ (zlib re-deflate). Stated precisely in README later.
-- **Stable block IDs (step 3):** assigned once at load in document order — `p0…` top-level
+- **Stable block IDs:** assigned once at load in document order — `p0…` top-level
   paragraphs, `t0` tables, `t0.r1.c2.p0` cell paragraphs; kept in a Python dict → element (never
   written into XML). Inserted paragraphs get `n0…`; deleted IDs are tombstoned. IDs never shift.
+- **Edits address text by quoting it**, not by offsets: exact match first, forgiving fallback,
+  ambiguity is an error with candidates (agent resolves from context or asks the user) — never a guess.
+- **Protected-by-default:** run children are whitelisted; unknown content is read-only. A refused
+  edit is always better than a silently damaged document.
+- **Minimal edits:** replace is trimmed to the characters that really change; split runs are
+  re-merged, so a one-word change usually leaves the run structure as it was.
+- **Paragraph-level `\n`:** a newline in new text becomes a line break (`w:br`) inside the same
+  paragraph; new paragraphs only via `insert_paragraph`.
 - **LLM provider:** configurable. **Default: Google Gemini (free tier, 500 req/day, EU — not used
   for training)**; Anthropic Claude optional (only ~$2 credit). Env vars in `.env.example`
   (`GEMINI_API_KEY`, `GEMINI_MODELS`, `ANTHROPIC_API_KEY`, `DOCX_AGENT_*`). Plan: LangChain
@@ -61,26 +69,51 @@ CI: `.github/workflows/ci.yml` runs the same gate on every push to `main` (no LL
 - Single `main` branch; **the human commits** — agents never commit/push.
 
 ## 5. Design spec for the remaining steps
-**Step 3 — runs & ops (`src/docx_agent/document/`)**
-- `blocks.py`: `BlockIndex` over the main document body (incl. table-cell paragraphs) with the ID
-  scheme above; `get(id)`, `text(id)`, `insert_after/before`, tombstones.
-- `runs.py`: per-paragraph **character map** over run text atoms: `w:t` (per char), `w:tab`,
-  `w:br`, `w:cr`, `w:noBreakHyphen` (1 char each); includes runs inside `w:hyperlink`,
-  `w:smartTag`, `w:ins`. Runs containing `w:drawing`, `w:pict`, `w:object`, `w:fldChar`,
-  `w:instrText`, footnote/endnote refs are **protected/atomic**.
-  `replace_span(p, start, end, new_text)`: split boundary runs (clone `w:rPr`), new text goes into
-  the first run of the span (inherits its formatting), drop the rest of the span, set
-  `xml:space="preserve"` when needed. Refuse (structured error) if the span touches protected
-  content or crosses a hyperlink/field boundary. Insert = zero-width replace inheriting the
-  preceding run's format (following run at offset 0). Delete = replace with "".
-- `ops.py`: `replace_text`, `insert_text`, `delete_text` (match by exact text, whitespace-normalized
-  fallback, `occurrence` index; ambiguous → error listing candidates), `insert_paragraph`
-  (deep-copy anchor `pPr` + first run `rPr`, never copy `sectPr`), `delete_paragraph` (refuse if
-  it carries `sectPr` or protected content unless `allow_media=True`). Leave bookmarks/proofErr/
-  comment ranges in place.
-- Tests: unit per op + every refusal path (use `tests/fixtures/builders.py`), and **hypothesis**
-  property tests: random run splits/formats + random spans ⇒ text == expected string op AND
-  per-char formatting outside span unchanged.
+**Step 3 — delivered (`src/docx_agent/document/`)** — 131 tests, 99 % branch coverage on `document/`.
+- `errors.py`: `EditError(code, message, **details)`; `.to_dict()` is what tools will return to
+  the LLM. Codes: `not_found`, `ambiguous` (+`candidates`, `total`), `invalid_occurrence`,
+  `protected` (+`protected` reason), `crosses_boundary`, `invalid_args`, `invalid_text`,
+  `invalid_span`, `unknown_block`, `deleted_block`, `not_a_paragraph`, `unknown_style` (+`available`).
+  Every refusal leaves the document unchanged.
+- `blocks.py`: `BlockIndex.from_package(pkg)` — IDs `p0…`, `t0`, `t0.r1.c2.p0` (nested tables
+  continue the pattern), block-level `w:sdt`/`w:customXml` walked transparently. `get/paragraph/
+  kind/id_of/ids()/paragraph_ids(scope)`, `register(el)` → `n0…`, `remove(id)` tombstones the
+  block **and every ID nested in it**. Helpers `children()`, `logical_container()`.
+- `runs.py`: `ParagraphMap(p)` = runs + atoms (one per visible char: `w:t` chars, tab `\t`,
+  br/cr `\n`, noBreakHyphen U+2011, softHyphen U+00AD; objects U+FFFC). Run children are
+  **whitelisted**: anything unknown is a protected atom. Protected: images/objects, complex fields
+  (begin…end incl. cached result, **carried across paragraphs** via `open_fields_before(p)`),
+  `fldSimple`, `w:ins`/`w:moveTo` runs, footnote/endnote/comment refs, page/column breaks, sym,
+  ptab. `w:del`/`w:moveFrom` text is invisible. `replace_span(p, start, end, new, attach=)`:
+  splits boundary runs (clone rPr), new text in first span run, removes the rest, re-merges
+  same-format plain runs it split, sets `xml:space`, drops inline containers it emptied (returned,
+  e.g. `["hyperlink"]`). Insert placement: inherits the preceding run's format (following at
+  offset 0); at a container edge (hyperlink) or next to protected content it creates a top-level
+  run **outside** the container/field, formatted like the nearest plain top-level run.
+  `attach="left"|"right"` forces joining a neighbour (used by replace → see `minimal_change`).
+  `char_formats(p)` = (char, container-context + rPr C14N) per char — **use this in step 4's
+  integrity check 3**.
+- `ops.py`: `find_text(index, query, scope)` (exact; if no exact match anywhere in scope, a
+  forgiving pass: whitespace runs collapsed, curly quotes/dashes/NBSP folded, soft hyphens ignored;
+  never spans paragraphs). `replace_text / delete_text / insert_text(anchor+side | position)` take
+  optional `block_id` (paragraph or table scope) and 1-based `occurrence` (counted within
+  `block_id`, else document-wide; ambiguous-candidate occurrences are **per block**, pass both).
+  `_span_edit` normalises CRLF, then `minimal_change` trims the common prefix/suffix so quoted
+  context keeps its formatting and "Page 1"→"Page 1 of 3" next to a field succeeds.
+  `insert_paragraph(index, anchor_id, text, side, style, styles)` copies anchor pPr (minus
+  `sectPr`/`pPrChange`) + first text run rPr (minus revision marks); with `style` → only that
+  pStyle. `delete_paragraph(index, id, allow_media)` refuses: sectPr carrier, protected content
+  (images, fields incl. bare fldChar, footnote/comment refs, equations, tracked changes) unless
+  `allow_media`, last paragraph of body/cell/content control, only paragraph between two tables;
+  moves bookmarks/comment ranges to the next (else previous) paragraph and reports it as touched.
+  `EditResult(op, block_id, before, after, touched, removed)`.
+- `styles.py`: `StyleCatalog.from_package` (read-only; never opens styles.xml for editing),
+  `resolve(name_or_id)` case-insensitive, `default_id`. `package.related_part(source, type_suffix)`.
+- Tests: `tests/unit/test_{runs,blocks,ops,styles}.py`; `tests/property/test_runs_properties.py`
+  (hypothesis: plain random runs ⇒ exact text + per-char formatting outside span + inherited format;
+  mixed hyperlinks/images/fields/bookmarks ⇒ refused-and-unchanged **or** exact text + formatting
+  + no protected element lost). Stress-checked with 5 000 examples each. Fixture helpers:
+  `xml_paragraph()`, `xml_body()`, `build_xml_docx()` in `tests/fixtures/builders.py`.
 
 **Step 4 — integrity (`integrity.py`)** `check(before_pkg, after_pkg, touched_ids, edit_log)`:
 (1) parts other than edited XML byte-identical, same part set; (2) untouched blocks C14N-identical;
@@ -121,8 +154,23 @@ decisions, limitations, how integrity is tested.
 - lxml stubs: `etree.tostring(standalone=None)` doesn't type-check → branch instead.
 - Claude 5.5 models: no `temperature`/`top_p`, no forced `tool_choice`; structured output via
   `method="json_schema"`.
+- **Project moved** to `~/Desktop/X/DEV/Personal/OlympAG OA` (still iCloud-synced): the old `.venv`
+  had absolute shebangs → `rm -rf .venv && uv sync`. For ad-hoc scripts outside pytest use
+  `PYTHONPATH=src:. uv run python …` (hidden `.pth`, see above).
+- **Claude Code tool input decodes `\uXXXX`**: escapes written via Write/Edit land as literal
+  characters (then RUF001 fails). Use `chr(0x…)` constants for special characters.
+- Coverage gate: `fail_under = 85` (global) in `pyproject.toml`.
+- Known limitations so far (README later): a field spanning paragraphs is detected by counting
+  `fldChar` begin/end before the paragraph (TOC entries are read-only); edits never span
+  paragraphs; hyperlink targets are not editable; ParagraphMap is rebuilt per op (fine for
+  case-study sizes, cache if long documents get slow).
 
 ## 7. Next action
-Start **step 3** (spec above). Use `build_rich_docx()` / `build_paragraphs_docx()` fixtures; keep
-`document/` free of any LLM code. Finish with `/checkpoint` (Claude) or `make check` + manual
-review + update this file (other agents), then stop for the human to commit.
+Start **step 4** (spec above): `document/integrity.py` `check(before_pkg, after_pkg, touched_ids,
+edit_log)` built on `BlockIndex` (original IDs are stable in the session; new `n*` IDs appear only
+in the edited index) and `runs.char_formats` (per-char formatting outside edited spans). A touched
+cell paragraph makes its table changed only inside that cell. `EditResult.removed` lists structures
+removed on purpose (e.g. `hyperlink`, `image`) for the counts check. Then a `view.py` (ID-tagged
+text view, `[IMAGE]` for U+FFFC, `[TABLE t0 3x3]`) and CLI `inspect` / `verify`. Finish with
+`/checkpoint` (Claude) or `make check` + manual review + update this file (other agents), then
+stop for the human to commit.

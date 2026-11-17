@@ -18,6 +18,7 @@ from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
+from lxml import etree
 from PIL import Image
 
 FIXED_DATE = datetime(2026, 1, 1, 9, 0, 0)
@@ -124,10 +125,12 @@ def add_bookmark_and_proofing(paragraph: object, name: str) -> None:
 
 
 def build_rich_docx() -> bytes:
-    """Body order (top-level blocks):
-    p0 Heading 1 | p1 mixed runs | p2,p3 bullets | p4,p5 numbered | t0 table 3x3 (merged 0,0-0,1)
-    p6 image | p7 hyperlink | p8 field | p9 tab+break | p10 bookmark+proofErr
-    p11 section break carrier | p12 last paragraph
+    """Body order (top-level blocks, IDs as assigned by BlockIndex):
+    p0 Heading 1 | p1 mixed runs | p2,p3 bullets | p4,p5 numbered
+    t0 table 3x3, row 0 = merged cell (c0 holds p0 "Goal" + empty p1) and c1 "Status"
+    p6 image | p7 hyperlink | p8 PAGE field | p9 tab+break | p10 bookmark+proofErr
+    p11 "End of first section." | p12 empty paragraph carrying the section break (sectPr)
+    p13 last paragraph (second section)
     """
     doc = Document()
     _fix_core_properties(doc)
@@ -182,6 +185,39 @@ def build_rich_docx() -> bytes:
     doc.add_paragraph("End of first section.")
     doc.add_section(WD_SECTION.NEW_PAGE)
     doc.add_paragraph("Signed: Dr. Erika Beispiel (fictitious)")
+    return _to_bytes(doc)
+
+
+W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+_NS_DECL = (
+    f'xmlns:w="{W_NS}" '
+    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+    'xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"'
+)
+
+
+def xml_body(inner: str) -> etree._Element:
+    """A w:body from raw WordprocessingML (w:, r:, m: prefixes are declared for you)."""
+    return etree.fromstring(f"<w:document {_NS_DECL}><w:body>{inner}</w:body></w:document>")[0]
+
+
+def xml_paragraph(inner: str) -> etree._Element:
+    """A w:p (inside a w:body) from raw run-level WordprocessingML."""
+    return xml_body(f"<w:p>{inner}</w:p>")[0]
+
+
+def build_xml_docx(body_inner: str) -> bytes:
+    """A real .docx whose body is replaced by raw XML (styles, rels etc. from python-docx)."""
+    doc = Document()
+    _fix_core_properties(doc)
+    body = doc.element.body
+    sect = body.sectPr
+    for child in list(body):
+        body.remove(child)
+    for child in xml_body(body_inner):
+        body.append(child)
+    if sect is not None:
+        body.append(sect)
     return _to_bytes(doc)
 
 

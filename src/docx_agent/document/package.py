@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import io
+import posixpath
 import zipfile
 import zlib
 from dataclasses import dataclass, field
@@ -134,6 +135,27 @@ class DocxPackage:
                 if name in self._by_name:
                     return name
         raise PackageError("no main document part (officeDocument relationship)")
+
+    def related_part(self, source: str, rel_type_suffix: str) -> str | None:
+        """Part targeted by `source`'s first internal relationship whose Type ends with
+        `rel_type_suffix` (e.g. "/styles"). Read-only: the .rels part is not opened for editing."""
+        src = PurePosixPath(source)
+        rels_name = str(src.parent / "_rels" / f"{src.name}.rels")
+        if rels_name not in self._by_name:
+            return None
+        try:
+            rels = etree.fromstring(self.original_part(rels_name), _PARSER)
+        except etree.XMLSyntaxError as exc:
+            raise PackageError(f"malformed {rels_name}: {exc}") from exc
+        for rel in rels.iter(f"{{{PKG_REL}}}Relationship"):
+            if rel.get("TargetMode") == "External":
+                continue
+            if rel.get("Type", "").endswith(rel_type_suffix):
+                target = rel.get("Target", "")
+                path = target.lstrip("/") if target.startswith("/") else str(src.parent / target)
+                name = posixpath.normpath(path)
+                return name if name in self._by_name else None
+        return None
 
     # ------------------------------------------------------------------ edit
     def xml(self, name: str) -> etree._ElementTree:
