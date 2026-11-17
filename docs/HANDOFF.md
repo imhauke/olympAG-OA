@@ -251,6 +251,23 @@ CI: `.github/workflows/ci.yml` runs the same gate on every push to `main` (no LL
 `evals.yml` workflow_dispatch. Final README: architecture diagram, decisions, limitations,
 testing explanation; finish `docs/DEVELOPMENT.md`.
 
+**Additional checkpoint — paragraph style support (2026-11-17):** a user-supplied document
+request exposed that existing paragraphs could not receive heading styles. Added
+`ops.set_paragraph_style(index, block_id, style, styles)` and a thin LLM-facing tool. It changes
+only `w:pPr/w:pStyle`, resolves existing catalog names/IDs, and preserves runs, other properties
+and protected content. `EditResult.style` records the requested ID (omitted from JSON on old
+operation types for compatibility). Session validation passes exact per-block style permissions
+to `check(..., style_changes={original_id: expected_style_id})`; other paragraph properties and
+run formatting stay protected, and the requested style must actually be present. Authorized
+style changes also inform paragraph alignment for combined title rename + style edits.
+Default `verify` remains strict about style changes; programmatic checks need the explicit map.
+Synthetic unit/graph regressions cover styling, rename/alignment, protected objects, refusal,
+no-op, wrong targets and unrelated property corruption. Gate: **249 tests, 99.44% coverage**.
+The supplied document and outputs stay only in ignored `out/`; no real document fixture was
+added. Automatic approval review rejected sending its content to Gemini without explicit
+disclosure authorization, so **zero live calls** were made for this request. A separately
+labelled local-tools output passed session integrity checks and python-docx reopening.
+
 ## 6. Gotchas / environment
 - **iCloud Desktop sync breaks the venv.** The project currently lives in `~/Desktop` (iCloud
   Drive). iCloud marks `.venv` files `hidden` and creates `name 2.ext` conflict copies; Python
@@ -300,6 +317,10 @@ expected content, untouched blocks/formatting, and should-ask-clarification. Add
 live-run call cap first and preserve the low-credit budget; do not rerun all samples needlessly.
 Turn each newly found failure into a deterministic failing regression before fixing it.
 Then step 9 finalizes architecture/limitations/testing documentation and the workflow write-up.
+
+The additional paragraph-style checkpoint above is also uncommitted; the human makes commits.
+A live run on a user-provided document now needs explicit consent for external disclosure if
+automatic approval review blocks it. Local editing and verification can proceed without that.
 
 API references consulted in step 5:
 [LangGraph interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts),

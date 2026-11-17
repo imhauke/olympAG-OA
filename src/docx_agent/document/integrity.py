@@ -27,7 +27,7 @@ import copy
 import difflib
 import itertools
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
@@ -112,6 +112,7 @@ def check(
     *,
     touched: Iterable[str] | None = None,
     allow_removed: Iterable[str] = (),
+    style_changes: Mapping[str, str] | None = None,
 ) -> IntegrityReport:
     """Compare two .docx packages. Raises PackageError if either is not a usable .docx."""
     report = IntegrityReport()
@@ -126,13 +127,19 @@ def check(
             "content-control wrappers)."
         )
     a_paras, b_paras = _paragraphs(a_index), _paragraphs(b_index)
-    for i, j in _align(a_paras, b_paras):
+    approved_styles = style_changes or {}
+    for i, j in _align(a_paras, b_paras, approved_styles):
         a = a_paras[i] if i is not None else None
         b = b_paras[j] if j is not None else None
         if a is not None and b is not None:
+            expected_style = approved_styles.get(a.bid)
+            if expected_style is not None and _style_id(b.el) != expected_style:
+                report.violations.append(
+                    f"{a.bid}: requested paragraph style {expected_style} not applied."
+                )
             if a.key != b.key:
                 report.changes.append(BlockChange("modified", a.bid, b.bid, a.text, b.text))
-                _check_modified(a, b, report)
+                _check_modified(a, b, report, expected_style)
         elif a is not None:
             report.changes.append(BlockChange("deleted", a.bid, None, a.text, ""))
         elif b is not None:
@@ -224,7 +231,9 @@ def _check_protected(
 # ---------------------------------------------------------------------------- paragraphs
 
 
-def _align(a: list[_Para], b: list[_Para]) -> list[tuple[int | None, int | None]]:
+def _align(
+    a: list[_Para], b: list[_Para], styles: Mapping[str, str]
+) -> list[tuple[int | None, int | None]]:
     """Pair paragraphs of two documents: identical ones by diff, changed ones by similarity."""
     matcher = difflib.SequenceMatcher(
         None, [(p.container, p.key) for p in a], [(p.container, p.key) for p in b], autojunk=False
@@ -234,12 +243,12 @@ def _align(a: list[_Para], b: list[_Para]) -> list[tuple[int | None, int | None]
         if tag == "equal":
             pairs.extend(zip(range(i1, i2), range(j1, j2), strict=True))
         else:
-            pairs.extend(_pair_changed(a, b, range(i1, i2), range(j1, j2)))
+            pairs.extend(_pair_changed(a, b, range(i1, i2), range(j1, j2), styles))
     return pairs
 
 
 def _pair_changed(
-    a: list[_Para], b: list[_Para], ai: range, bj: range
+    a: list[_Para], b: list[_Para], ai: range, bj: range, styles: Mapping[str, str]
 ) -> list[tuple[int | None, int | None]]:
     """Order-preserving best pairing (max total text similarity) of a changed region."""
     m, n = len(ai), len(bj)
@@ -254,7 +263,7 @@ def _pair_changed(
 
     def score(i: int, j: int) -> float:
         if (i, j) not in memo:
-            memo[i, j] = _score(a[ai[i]], b[bj[j]])
+            memo[i, j] = _score(a[ai[i]], b[bj[j]], styles.get(a[ai[i]].bid))
         return memo[i, j]
 
     best = [[0.0] * (n + 1) for _ in range(m + 1)]
@@ -281,20 +290,50 @@ def _pair_changed(
     return out
 
 
-def _score(pa: _Para, pb: _Para) -> float:
+def _score(pa: _Para, pb: _Para, expected_style: str | None) -> float:
     """How plausibly `pb` is an edited version of `pa` (<= 0: not at all)."""
     if pa.container != pb.container:
         return -1.0
     ratio = difflib.SequenceMatcher(None, pa.text, pb.text, autojunk=False).ratio()
-    if pa.ppr == pb.ppr:
+    if pa.ppr == pb.ppr or (
+        expected_style is not None
+        and _style_id(pb.el) == expected_style
+        and _ppr_without_style(pa.el) == _ppr_without_style(pb.el)
+    ):
         return 0.1 + ratio
     # Text edits never change paragraph properties, so different pPr means "a different
     # paragraph" -- unless the text is (nearly) the same: then the properties were altered.
     return ratio if pa.text and ratio >= SAME_TEXT_RATIO else -1.0
 
 
-def _check_modified(a: _Para, b: _Para, report: IntegrityReport) -> None:
-    if a.ppr != b.ppr:
+def _style_id(p: _E) -> str | None:
+    element = p.find(f"{_PPR}/{qn('w:pStyle')}")
+    return element.get(qn("w:val")) if element is not None else None
+
+
+def _ppr_without_style(p: _E) -> bytes:
+    ppr = p.find(_PPR)
+    if ppr is None:
+        return b""
+    clone = copy.deepcopy(ppr)
+    for style in list(clone.iterchildren(qn("w:pStyle"))):
+        clone.remove(style)
+    return (
+        b""
+        if not len(clone) and not clone.attrib and not (clone.text or "").strip()
+        else _c14n(clone)
+    )
+
+
+def _check_modified(
+    a: _Para, b: _Para, report: IntegrityReport, expected_style: str | None
+) -> None:
+    ppr_changed = (
+        a.ppr != b.ppr
+        if expected_style is None
+        else _ppr_without_style(a.el) != _ppr_without_style(b.el)
+    )
+    if ppr_changed:
         report.violations.append(f"{a.bid}: paragraph properties (style, numbering...) changed.")
     a_fmt, b_fmt = char_formats(a.el), char_formats(b.el)
     matcher = difflib.SequenceMatcher(None, a.text, b.text, autojunk=False)

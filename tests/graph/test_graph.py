@@ -292,3 +292,30 @@ def test_reviewer_sees_actual_inserted_bullet_style(tmp_path: Path) -> None:
         context=ctx,
     )
     assert result["status"] == "saved"
+
+
+def test_heading_style_changes_and_rename(tmp_path: Path) -> None:
+    original = build_xml_docx(
+        "<w:p><w:r><w:t>1. Introduction and goals</w:t></w:r></w:p>"
+        "<w:p><w:r><w:t>1.1 Motivation</w:t></w:r></w:p>"
+    )
+    model = ScriptedModel(
+        responses=[
+            calls(
+                ("replace_text", {"old": "1. Introduction and goals", "new": "Introduction"}),
+                ("set_paragraph_style", {"block_id": "p0", "style": "Heading 1"}),
+                ("set_paragraph_style", {"block_id": "p1", "style": "Heading 2"}),
+            ),
+            calls(("finish", {})),
+        ]
+    )
+    graph = build_graph(model)
+    context = AgentContext(session=DocumentSession(original), output=tmp_path / "out.docx")
+    result = graph.invoke(
+        {"instruction": "Rename chapter one and format the headings by depth"},
+        {"configurable": {"thread_id": "heading-styles"}},
+        context=context,
+    )
+    assert result["status"] == "saved"
+    assert context.session.validate().ok
+    assert [e.style for e in context.session.edits] == [None, "Heading1", "Heading2"]

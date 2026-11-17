@@ -102,6 +102,15 @@ def make_tools(session: DocumentSession) -> list[BaseTool]:
         return edit(lambda: ops.delete_paragraph(session.index, block_id, allow_media=allow_media))
 
     @tool
+    def set_paragraph_style(block_id: str, style: str) -> str:
+        """Apply an existing Word paragraph style (Heading 1, Heading 2, etc.) to a paragraph.
+
+        Preserve text, runs, numbering, indentation and protected objects. Use one heading
+        level per hierarchy depth, including headings currently formatted as normal text.
+        """
+        return edit(lambda: ops.set_paragraph_style(session.index, block_id, style, session.styles))
+
+    @tool
     def ask_clarification(question: str) -> str:
         """Ask the user a specific question when their intent cannot resolve an ambiguity.
 
@@ -124,6 +133,7 @@ def make_tools(session: DocumentSession) -> list[BaseTool]:
         delete_text,
         insert_paragraph,
         delete_paragraph,
+        set_paragraph_style,
         ask_clarification,
         finish,
     ]

@@ -73,8 +73,15 @@ class DocumentSession:
         """Check final integrity, journal continuity, and each claimed operation effect."""
         touched = {bid for e in self.edits for bid in e.touched}
         removed = {category for e in self.edits for category in e.removed}
+        styles = {
+            e.block_id: e.style
+            for e in self.edits
+            if e.style is not None and e.block_id in self.index and not e.block_id.startswith("n")
+        }
         output = self.package.to_bytes()
-        report = check(self.original, output, touched=touched, allow_removed=removed)
+        report = check(
+            self.original, output, touched=touched, allow_removed=removed, style_changes=styles
+        )
         previous = self._baseline
         for i, receipt in enumerate(self._receipts, 1):
             if receipt.before != previous:
@@ -84,6 +91,11 @@ class DocumentSession:
                 receipt.after,
                 touched=receipt.touched,
                 allow_removed=receipt.result.removed,
+                style_changes=(
+                    {receipt.before_id: receipt.result.style}
+                    if receipt.before_id is not None and receipt.result.style is not None
+                    else None
+                ),
             )
             report.violations.extend(f"Operation {i}: {v}" for v in proof.violations)
             if not _effect_matches(receipt, proof):

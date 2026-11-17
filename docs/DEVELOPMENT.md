@@ -52,6 +52,7 @@ Evidence of loop iterations is appended automatically to `.claude/loop-log.jsonl
 | 6–7 | live practice-letter run → failing unit regression | a broad date/time replacement spread bold into unchanged connecting text and the italic time | token-aligned disjoint spans; atomic preparation in copied XML context; exact date/time + preceding-field refusal regressions |
 | 6–7 | new replacement property test | repeated letters matched across separate words, displacing the unchanged middle phrase | whole-token anchors; retain the shrunk case as an explicit Hypothesis example |
 | 6–7 | three live HTTP 503 responses → failing harness regression | restarting a run would spend calls and replay already completed work | explicit opt-in single 503 retry at the pending graph node; test proves no edit replay |
+| Heading-style request | synthetic failing unit/graph tests before extending tools | no existing-paragraph style tool; checker correctly rejected all paragraph-property changes | add exact per-block style permissions, effect checks and alignment support; preserve every other property/run/object. 249 tests, 99.44% coverage. External disclosure of the supplied document was blocked by automatic approval review; local-tools output only, zero live calls |
 
 ## Review log (/checkpoint)
 | Step | Findings | Fixed | Skipped (reason) |

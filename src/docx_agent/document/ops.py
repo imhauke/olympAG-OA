@@ -75,9 +75,13 @@ class EditResult:
     after: str  # block text after the op ("" for a deleted paragraph)
     touched: tuple[str, ...]  # every block whose XML changed
     removed: tuple[str, ...] = ()  # structures removed on purpose (e.g. "hyperlink", "image")
+    style: str | None = None  # explicitly requested paragraph styleId, otherwise unchanged
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        result = asdict(self)
+        if self.style is None:
+            result.pop("style")
+        return result
 
 
 @dataclass(frozen=True)
@@ -360,6 +364,31 @@ def minimal_change(text: str, start: int, end: int, new: str) -> tuple[int, int,
 
 
 # ---------------------------------------------------------------------------- paragraph ops
+
+
+def set_paragraph_style(
+    index: BlockIndex, block_id: str, style: str, styles: StyleCatalog
+) -> EditResult:
+    """Apply an existing paragraph style, retaining runs and every other paragraph property."""
+    p = index.paragraph(block_id)
+    sid = styles.resolve(style)
+    if sid is None:
+        raise EditError(
+            "unknown_style",
+            f"There is no paragraph style {style!r} in this document.",
+            available=styles.display_names(),
+        )
+    text = paragraph_text(p)
+    ppr = p.find(_PPR)
+    if ppr is None:
+        ppr = etree.Element(_PPR)
+        p.insert(0, ppr)
+    pstyle = ppr.find(_P_STYLE)
+    if pstyle is None:
+        pstyle = etree.Element(_P_STYLE)
+        ppr.insert(0, pstyle)
+    pstyle.set(_VAL, sid)
+    return EditResult("set_paragraph_style", block_id, text, text, (block_id,), style=sid)
 
 
 def insert_paragraph(

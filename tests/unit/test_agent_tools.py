@@ -48,6 +48,7 @@ def test_tool_schema_exposes_only_document_actions(rich_docx: bytes) -> None:
         "delete_text",
         "insert_paragraph",
         "delete_paragraph",
+        "set_paragraph_style",
         "ask_clarification",
         "finish",
     }
