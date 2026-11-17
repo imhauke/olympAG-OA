@@ -69,9 +69,10 @@ ignore_missing_imports = true
 # ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = [".", "src"]
 addopts = "-ra --strict-markers"
 markers = [
-    "live: calls the real Anthropic API (skipped unless ANTHROPIC_API_KEY is set and -m live)",
+    "live: calls a real LLM API (never in CI; run explicitly with -m live)",
 ]
 
 [tool.coverage.run]

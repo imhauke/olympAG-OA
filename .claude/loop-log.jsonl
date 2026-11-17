@@ -1,0 +1,3 @@
+{"ts": "2026-11-17T10:17:10", "hook": "post_edit", "file": "tests/conftest.py", "stage": "unit-tests", "ok": false}
+{"ts": "2026-11-17T10:17:38", "hook": "post_edit", "file": "tests/unit/test_package.py", "stage": "lint", "ok": false}
+{"ts": "2026-11-17T10:26:56", "hook": "stop_gate", "ok": false, "attempt": 1}

@@ -26,15 +26,15 @@ def main() -> int:
     if path.suffix != ".py" or rel.parts[0] in {".venv", ".claude"}:
         return 0
 
-    run(["uv", "run", "--quiet", "ruff", "format", str(rel)])
-    run(["uv", "run", "--quiet", "ruff", "check", "--fix", "--quiet", str(rel)])
-    code, lint_out = run(["uv", "run", "--quiet", "ruff", "check", str(rel)])
+    run(["uv", "run", "--quiet", "ruff", "format", str(rel)], timeout=30)
+    run(["uv", "run", "--quiet", "ruff", "check", "--fix", "--quiet", str(rel)], timeout=30)
+    code, lint_out = run(["uv", "run", "--quiet", "ruff", "check", str(rel)], timeout=30)
     if code != 0:
         log({"hook": "post_edit", "file": str(rel), "stage": "lint", "ok": False})
         print(f"ruff found problems in {rel}:\n{tail(lint_out)}", file=sys.stderr)
         return 2
 
-    code, test_out = run(["uv", "run", "--quiet", "pytest", "-x", "-q", "tests/unit"], timeout=300)
+    code, test_out = run(["uv", "run", "--quiet", "pytest", "-x", "-q", "tests/unit"], timeout=180)
     # exit code 5 == no tests collected; fine during scaffolding
     if code not in (0, 5):
         log({"hook": "post_edit", "file": str(rel), "stage": "unit-tests", "ok": False})

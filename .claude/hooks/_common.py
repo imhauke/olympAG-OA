@@ -27,15 +27,25 @@ def read_event() -> dict[str, Any]:
         return {}
 
 
-def run(cmd: list[str], timeout: int = 600) -> tuple[int, str]:
-    proc = subprocess.run(  # fixed argv, no shell
-        cmd,
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-        check=False,
-    )
+def run(cmd: list[str], timeout: int) -> tuple[int, str]:
+    """Run a command; timeouts and missing executables count as failures (never silent passes).
+
+    Callers must pass a timeout well below the hook timeout in settings.json, otherwise
+    Claude Code kills the hook first and the failure is never fed back.
+    """
+    try:
+        proc = subprocess.run(  # fixed argv, no shell
+            cmd,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return 124, f"`{' '.join(cmd)}` timed out after {timeout}s (hung test?)"
+    except FileNotFoundError:
+        return 127, f"`{cmd[0]}` not found on PATH"
     return proc.returncode, (proc.stdout + proc.stderr)
 
 

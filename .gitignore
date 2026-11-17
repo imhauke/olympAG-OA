@@ -20,3 +20,5 @@ build/
 # Claude Code local-only settings
 .claude/settings.local.json
 .claude/.state/
+# Case-study brief (not ours to publish)
+Olymp_Engineering_Case_Study.pdf
