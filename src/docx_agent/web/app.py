@@ -15,7 +15,7 @@ import unicodedata
 from collections.abc import Callable
 from importlib.resources import files
 from pathlib import PurePath
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
@@ -24,15 +24,13 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from docx_agent import __version__
-from docx_agent.agent.models import Settings, create_model
+from docx_agent.agent.models import PROVIDER_LABELS, Provider, Settings, create_model
 from docx_agent.document.package import PackageError
 from docx_agent.web.history import History, history_path
 from docx_agent.web.jobs import Job, JobStore, ModelFactory
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 MAX_INSTRUCTION_CHARS = 4_000
-PROVIDER_LABELS = {"google_genai": "Gemini", "anthropic": "Claude"}
-Provider = Literal["google_genai", "anthropic"]
 STATIC = files("docx_agent.web") / "static"
 
 
@@ -93,6 +91,10 @@ def create_app(
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
         return FileResponse(str(STATIC / "index.html"), headers={"Cache-Control": "no-store"})
+
+    @app.get("/docs", include_in_schema=False)
+    def docs() -> FileResponse:
+        return FileResponse(str(STATIC / "docs.html"), headers={"Cache-Control": "no-store"})
 
     app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
     return app

@@ -11,7 +11,7 @@ Graded on **editing reliability + document integrity** first, then architecture,
   "Max Mustermann", invented notes) is expected and fine. Never add *real* people, patient or health data.
 - The delivered agent edits documents **only through our own tools** in `src/docx_agent/document/`.
   No shell, `exec`, or code-execution tools in the agent.
-- **Token budget:** never run live LLM calls/evals casually (free-tier Gemini quota, ~$2 Anthropic credit).
+- **Token budget:** never run live LLM calls/evals casually (free-tier Gemini quota; Anthropic credit: $1.93 of the original $2 remaining at delivery).
   Tests use a scripted fake LLM. Announce any live run and its call count first.
 - Keep the project small: no speculative features, no extra dependencies without a reason.
 - At every checkpoint, update `docs/HANDOFF.md` so an agent with zero context can continue.

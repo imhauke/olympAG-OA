@@ -1,93 +1,175 @@
 # docx-agent
 
-Python/LangGraph-Agent für `.docx`-Bearbeitung per Anweisung: Einfügen, Ersetzen, Löschen und
-Anwenden vorhandener Absatzstile bei Erhalt unberührter Inhalte und Formatierungen. Nutzbar über
-eine lokale Web-Oberfläche oder die Kommandozeile.
+Ein Python/LangGraph-Agent, der bestehende Word-Dokumente (`.docx`) nach Anweisungen in
+natürlicher Sprache bearbeitet: Text einfügen, ersetzen und löschen, Absätze hinzufügen oder
+entfernen und vorhandene Absatzstile anwenden. Alles, was Sie nicht ändern wollten, behält
+Formatierung, Bilder und Tabellen. Nutzbar über ein interaktives Terminal-Menü oder eine lokale
+Web-Oberfläche.
 
 ![Die lokale Web-Oberfläche nach einer Bearbeitung: geprüfte Änderungen als Wort-Diff, bereit zum Download](docs/images/ui-result.png)
 
 [English](README.md) · [Architektur & Integrität](docs/ARCHITECTURE.md) ·
-[KI-Entwicklungsprozess](docs/DEVELOPMENT.md) · [Gemessene Evaluation](evals/baselines/2026-11-17-final.md)
+[KI-gestützte Entwicklung](docs/DEVELOPMENT.md) · [Gemessene Evaluation](evals/baselines/2026-11-17-final.md)
+· Die Web-Oberfläche enthält außerdem eine Seite **How it was built** mit den Entscheidungen
+hinter dem Projekt.
 
-## Start
+## Schnellstart
 
-Benötigt [uv](https://docs.astral.sh/uv/getting-started/installation/); `.python-version` wählt
-Python 3.12. Alle Befehle im Repository-Hauptverzeichnis ausführen:
+Vier Schritte, etwa fünf Minuten. Ein Terminal in diesem Projektordner öffnen (dem Ordner mit
+dieser README) und dort jeden Befehl einzeln in einer eigenen Zeile ausführen.
+
+### Schritt 1: uv installieren (einmal pro Rechner)
+
+[uv](https://docs.astral.sh/uv/) installiert das passende Python (3.12) und alle Abhängigkeiten.
+Python muss nicht installiert sein.
+
+macOS oder Linux:
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Windows (PowerShell):
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Danach ein neues Terminal öffnen und prüfen, dass `uv --version` eine Versionsnummer ausgibt.
+
+### Schritt 2: Abhängigkeiten installieren
 
 ```sh
 uv sync --locked
 ```
 
-**macOS + iCloud (Schreibtisch/Dokumente-Sync):** iCloud markiert Dateien in `.venv` als versteckt;
-Python überspringt dann die editierbare Installation (`ModuleNotFoundError: No module named
-'docx_agent'`). Projekt außerhalb von iCloud ablegen oder nur die Umgebung auslagern:
+Das lädt bei Bedarf Python 3.12 und installiert die fixierten Abhängigkeiten in `.venv`. Am Ende
+steht eine Zeile wie `Installed … packages`.
+
+> **macOS und iCloud Drive:** Liegt der Projektordner in iCloud (z. B. auf dem Schreibtisch oder
+> in Dokumente mit aktivem iCloud-Sync), versteckt iCloud Dateien in `.venv`, und später erscheint
+> `ModuleNotFoundError: No module named 'docx_agent'`. Die Umgebung außerhalb von iCloud ablegen:
+>
+> ```sh
+> rm -rf .venv
+> UV_PROJECT_ENVIRONMENT="$HOME/.venvs/docx-agent" uv sync --locked
+> ln -s "$HOME/.venvs/docx-agent" .venv
+> ```
+
+### Schritt 3: API-Schlüssel hinterlegen
+
+**Reviewer:** die privat erhaltene Datei `.env` in den Projektordner kopieren, neben diese
+README. Fertig; weiter mit Schritt 4.
+
+Alle anderen legen eine eigene `.env` aus der Vorlage an,
 
 ```sh
-rm -rf .venv
-UV_PROJECT_ENVIRONMENT="$HOME/.venvs/docx-agent" uv sync --locked
-ln -s "$HOME/.venvs/docx-agent" .venv
+cp .env.example .env
 ```
 
-Privat bereitgestellte Review-`.env` verwenden oder `.env.example` nach `.env` kopieren und setzen:
+(unter Windows: `copy .env.example .env`), öffnen `.env` in einem Texteditor und tragen
+mindestens einen Schlüssel ein:
 
 ```dotenv
-GEMINI_API_KEY=your_key
-ANTHROPIC_API_KEY=your_key
-DOCX_AGENT_MAX_TURNS=5
-DOCX_AGENT_MAX_RETRIES=0
+GEMINI_API_KEY=ihr_gemini_schluessel
+ANTHROPIC_API_KEY=ihr_anthropic_schluessel
 ```
 
-`GEMINI_API_KEY` bedient den Standard-Anbieter; `ANTHROPIC_API_KEY` aktiviert Claude Sonnet 5.5.
+- `GEMINI_API_KEY` wählt **Gemini 3.5 Flash-Lite** (Standard; ein
+  [kostenloser Schlüssel](https://aistudio.google.com/apikey) genügt).
+- `ANTHROPIC_API_KEY` aktiviert **Claude Sonnet 5.5**.
+- Optional, um die Kosten pro Bearbeitung zu begrenzen: `DOCX_AGENT_MAX_TURNS=5` und
+  `DOCX_AGENT_MAX_RETRIES=0` (die Review-`.env` setzt beides bereits). Kommentare in eine eigene
+  Zeile schreiben, nie hinter einen Wert.
 
-Die Review-`.env` enthält Test-Schlüssel für **Gemini und Anthropic**, privat bereitgestellt und
-sieben Tage ab dem 2026-11-17 gültig (bis 2026-11-24); der Inhaber widerruft beide danach. Keine
-automatische Abschaltung durch die Anwendung. Anschließend eigene
-[Gemini](https://aistudio.google.com/apikey)- oder Anthropic-Schlüssel verwenden. `.env` niemals
-committen. Mit Claude: `uv run docx-agent edit ... --provider anthropic` (Standard: `claude-sonnet-5-5`).
+Die Review-Schlüssel sind sieben Tage ab dem 2026-11-17 gültig (bis 2026-11-24); ihr Inhaber
+widerruft beide danach. `.env` niemals committen (git ignoriert die Datei).
 
-### Web-Oberfläche
+### Schritt 4a: Im Terminal-Menü bearbeiten
+
+```sh
+uv run docx-agent
+```
+
+Das öffnet das Menü:
+
+```text
+docx-agent  0.1.0
+Edit Word documents with plain-language instructions.
+
+Model      Gemini · gemini-3.5-flash-lite
+Documents  3 found in documents/ and samples/
+
+  1  Edit a document
+  2  Preview a document (what the agent sees)
+  3  Verify an edited copy against its original
+  4  Switch model
+  5  Open the web UI in your browser
+  q  Quit
+
+Choose (1):
+```
+
+1. **Enter** drücken (oder `1` tippen), um ein Dokument zu bearbeiten.
+2. Ein Dokument über seine Nummer wählen. Die Liste zeigt Ihre eigenen Dateien aus
+   [`documents/`](documents/README.md), frühere bearbeitete Kopien und drei synthetische Beispiele.
+   Mit `p` lässt sich der Pfad einer beliebigen anderen `.docx` einfügen oder hineinziehen.
+3. Die gewünschte Änderung eintippen und Enter drücken. Für einen ersten Versuch
+   `samples/therapy_session_note/input.docx` wählen und eingeben:
+   `In the goals table, change the sleep target from 8h to 7.5h.`
+4. Den Fortschritt verfolgen: Lesen, Bearbeiten, Integritätsprüfung, Review. Ist unklar, welche
+   von mehreren Stellen gemeint ist, fragt der Agent nach; Antwort eintippen und Enter drücken.
+5. Das Ergebnis lesen: jede Änderung als Wort-Diff mit Fundstelle sowie der Pfad der bearbeiteten
+   Kopie (`documents/edited/<name>.edited.docx`) und ihres JSON-Berichts. Das Original wird nie
+   verändert, frühere Ergebnisse werden nie überschrieben.
+
+Zurück im Menü prüft `3` jede bearbeitete Kopie erneut gegen ihr Original, `2` zeigt das
+Dokument genau so, wie der Agent es sieht, `4` wechselt zwischen Gemini und Claude (wenn beide
+Schlüssel gesetzt sind), `5` startet die Web-Oberfläche und `q` beendet. Strg+C beendet ebenfalls.
+
+**Eigene Dokumente:** `.docx`-Dateien in den Ordner [`documents/`](documents/README.md) kopieren;
+sie erscheinen beim nächsten Auswählen in der Liste. Alles in diesem Ordner bleibt lokal (von git
+ignoriert).
+
+### Schritt 4b: Im Browser bearbeiten
 
 ```sh
 uv run docx-agent ui
 ```
 
-Startet die App auf <http://127.0.0.1:8765> und öffnet sie im Browser.
+Das startet die App auf <http://127.0.0.1:8765> und öffnet sie im Browser (oder `5` im Menü
+wählen).
 
-`.docx` wählen (oder hineinziehen), Änderung beschreiben, **Gemini** oder **Claude** wählen (nur
-Modelle mit Schlüssel in `.env` werden angeboten) und **Edit document** drücken (⌘/Strg + Enter).
-Der Fortschritt wird live angezeigt; bei mehrdeutigen Stellen fragt der Agent direkt nach und
-arbeitet mit der Antwort weiter. Das Ergebnis zeigt jede Änderung als Wort-Diff mit Fundstelle,
-bestätigt die Integritätsprüfung und bietet das bearbeitete Dokument sowie den JSON-Bericht zum
-Download. Lehnen Prüfung oder Review ab, entsteht keine Datei und der Grund wird angezeigt.
+![Die Eingabeansicht: gewählte .docx, Anweisung und Modellauswahl](docs/images/ui-compose.png)
 
-- Nur lokal: Der Server bindet an `127.0.0.1`, lehnt fremde `Host`-Header ab und verlangt bei
-  arbeitsauslösenden Anfragen einen UI-Header, damit andere Websites kein API-Guthaben verbrauchen.
-- Dokumente werden im Speicher bearbeitet und nie auf die Festplatte geschrieben; Ergebnisse der
-  letzten Bearbeitungen bleiben bis zum Beenden des Servers abrufbar.
+1. Auf **Choose a .docx file** klicken (oder eine Datei darauf ziehen).
+2. Die Änderung unter **What should change?** beschreiben oder ein Beispiel anklicken.
+3. **Gemini** oder **Claude** wählen. Angeboten werden nur Modelle mit Schlüssel in `.env`.
+4. **Edit document** drücken (oder ⌘/Strg + Enter) und den Live-Fortschritt verfolgen. Stellt der
+   Agent eine Frage, direkt dort antworten.
+5. Die geprüften Änderungen lesen, dann **Download edited document** (und bei Bedarf den
+   JSON-Bericht). Lehnen die Prüfungen oder das Review eine Bearbeitung ab, entsteht keine Datei,
+   und der Grund wird angezeigt.
+
+Der Reiter **How it was built** (<http://127.0.0.1:8765/docs>) erklärt die Entscheidungen hinter
+dem Projekt. Den Server mit Strg+C beenden.
+
+- Nur lokal: Der Server lauscht auf `127.0.0.1`, lehnt fremde `Host`-Header ab und verlangt bei
+  jeder Anfrage, die Arbeit startet, einen UI-Header, damit andere Websites kein API-Guthaben
+  verbrauchen können.
+- Hochgeladene Dokumente werden im Speicher bearbeitet und nie auf die Festplatte geschrieben.
+  Ergebnisse der letzten Bearbeitungen bleiben verfügbar, bis der Server stoppt.
 - **Recent documents** speichert nur Dateiname, Anweisung, Modell, Ergebnis und Zeit (nie die
-  Dokumente) in `~/.docx-agent/history.json`; verschieben mit `DOCX_AGENT_HISTORY`, leeren mit
+  Dokumente) in `~/.docx-agent/history.json`. Verschieben mit `DOCX_AGENT_HISTORY`, leeren mit
   **Clear**.
-- Optionen: `--port 8765`, `--no-open` (kein Browser-Tab). Beenden mit Strg+C.
+- Optionen: `--port 8780` für einen anderen Port, `--no-open`, um keinen Browser-Tab zu öffnen.
 
-### Kommandozeile
+Bearbeitungen senden Dokumenttext und Anweisung an den gewählten Anbieter. Die synthetischen
+Beispiele oder Dokumente verwenden, die Sie teilen dürfen, und niemals echte Patientendaten.
 
-```sh
-mkdir -p out
-uv run docx-agent edit samples/therapy_session_note/input.docx "In the goals table, replace the sleep target 8h with 7.5h. Leave everything else unchanged." -o out/edited.docx --non-interactive
-uv run docx-agent verify samples/therapy_session_note/input.docx out/edited.docx
-```
+## Prüfen ohne API-Schlüssel
 
-PowerShell: Ausgabeordner mit `New-Item -ItemType Directory -Force out` erstellen.
-Erwartet: `saved: ...`, `out/edited.docx`, `out/edited.report.json` und abschließend
-`OK: integrity checks passed.` Das Original bleibt erhalten. Vorhandene Ausgaben können beim
-erneuten Ausführen überschrieben werden.
-
-`edit` sendet Dokumenttext/Anweisung an Gemini. Nur synthetische Beispiele oder zur Weitergabe
-freigegebene Dokumente verwenden; keine echten Patientendaten. Die obigen Einstellungen erlauben
-höchstens fünf Bearbeitungsaufrufe plus eine Modellprüfung. Programmstandard: 30 Aufrufe und
-zwei gemeinsame Zurücksetzungen nach Validierungs-/Bewertungsfehlern.
-
-## Ohne Schlüssel prüfen
+Diese Befehle rufen kein Modell auf:
 
 ```sh
 uv run docx-agent inspect samples/therapy_session_note/input.docx
@@ -95,85 +177,127 @@ uv run docx-agent verify samples/therapy_session_note/input.docx samples/therapy
 make check
 ```
 
-`inspect`, `verify` und Tests führen keine Modellaufrufe aus. Die [drei Beispiele](samples/README.md)
-enthalten Eingabe, Anweisung, echte Gemini-Ausgabe, Diff und Integritäts-/Herkunftsberichte.
-Das Layout lässt sich durch Öffnen der Word-Dateien prüfen.
+`inspect` zeigt die mit IDs versehene Ansicht, die der Agent liest. `verify` vergleicht ein
+Original mit einer bearbeiteten Kopie und endet mit `OK: integrity checks passed.` Die
+[drei Beispiele](samples/README.md) enthalten Eingabe, Anweisung, echte Gemini-Ausgabe, Diff und
+Herkunftsnachweis; die Word-Dateien öffnen, um das Layout zu prüfen.
 
-`make check` = Ruff-Lint/Format + striktes Quellcode-mypy + vollständige pytest-/Coverage-Prüfung,
-ebenso in CI. Letzter Lauf: **296 Tests, 98,58 % Quellcodeabdeckung** (Mindestwert 85 %).
-Ohne Make:
+`make check` ist die einzige Qualitätsschranke, identisch in CI: Ruff-Lint und -Format, striktes
+mypy und die vollständige pytest-Suite mit Coverage. Letzter Lauf: **317 Tests, 98,14 % Coverage**
+(Minimum 85 %). Ohne Make:
 
 ```sh
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy
-uv run pytest -q --cov --cov-report=term --cov-report=xml
+uv run pytest -q --cov
 ```
 
-## Schnittstelle und Verhalten
+## Einzelbefehle (für Skripte)
+
+Das Menü ist der einfachste Einstieg; jede Aktion gibt es auch als einzelnen Befehl:
 
 ```text
+docx-agent                     interaktives Menü
 docx-agent ui [--port 8765] [--no-open]
 docx-agent inspect FILE.docx
-docx-agent edit INPUT.docx "instruction" -o OUTPUT.docx
+docx-agent edit INPUT.docx "instruction" -o OUTPUT.docx [--provider anthropic]
 docx-agent verify BEFORE.docx AFTER.docx [--json] [--allow-removed image]
 ```
 
-- Pfade/Anweisungen mit Leerzeichen in Anführungszeichen setzen. Ort, alten und neuen Text nennen.
-- Rückfragen pausieren den Graphen; im selben Prozess antworten. `--non-interactive` beendet mit 3.
-- Validierungs-/Bewertungsfehler setzen das Dokument zurück, solange Versuche übrig sind.
-  Bei Fehlern wird nichts veröffentlicht; `--force` speichert einen letzten abgelehnten Versuch
-  und beendet weiterhin mit 1.
-- `--dry-run` ruft das Modell auf, schreibt aber keine Dateien. `--report PATH.json` wählt den
-  Berichtspfad; sonst entsteht für `result.docx` die Datei `result.report.json`.
-- `--model`/`--provider` überschreiben Einstellungen. Umgebungsvariablen haben Vorrang vor `.env`.
-  Weitere Optionen: `.env.example` und `uv run docx-agent edit --help`. Beide Anbieter sind live geprüft:
-  Gemini durch Evals und Beispiele, Claude Sonnet 5.5 durch eine Testbearbeitung (`verify` OK). Keine SDK-Wiederholungen oder Anbieter-Fallbacks.
-- Rückgabecodes: 0 Erfolg; 1 fehlgeschlagene Prüfung/Modellaufruf; 2 ungültige Eingabe/Konfiguration
-  oder Dateifehler; 3 Rückfrage im nicht interaktiven Modus.
+```sh
+mkdir -p out
+uv run docx-agent edit samples/therapy_session_note/input.docx "In the goals table, change the sleep target from 8h to 7.5h." -o out/edited.docx --non-interactive
+uv run docx-agent verify samples/therapy_session_note/input.docx out/edited.docx
+```
+
+- Pfade und Anweisungen mit Leerzeichen in Anführungszeichen setzen. Stelle, alten Text und
+  Ersatz nennen.
+- Eine Rückfrage pausiert den Lauf und wartet auf die Antwort; `--non-interactive` beendet
+  stattdessen mit Code 3.
+- Scheitern Validierung oder Review, wird auf das Original zurückgesetzt, solange Wiederholungen
+  übrig sind. Bei Misserfolg wird nichts geschrieben; `--force` speichert einen letzten
+  abgelehnten Versuch und endet trotzdem mit 1.
+- `--dry-run` ruft das Modell auf, schreibt aber keine Dateien. `--report PATH.json` setzt den
+  Berichtspfad (Standard: `OUTPUT.report.json`). `--model` und `--provider` überschreiben
+  Einstellungen; Umgebungsvariablen überschreiben `.env`. Siehe `uv run docx-agent edit --help`.
+- Exit-Codes: 0 Erfolg; 1 fehlgeschlagene Prüfung oder Modellaufruf; 2 ungültige Eingabe,
+  Konfiguration oder I/O; 3 Rückfrage im nicht-interaktiven Modus.
 
 ## Architektur und Grenzen
 
-Expliziter `StateGraph`: Laden → Agent/Werkzeuge → Validierung → strukturierte Modellbewertung
-→ Speichern, mit Rückfrage-Unterbrechungen und begrenzten Zurücksetzungen. Das Dokument liegt
-im Laufzeitkontext; Nachrichten werden nur angehängt. Werkzeuge erlauben Dokumentoperationen,
-keine Shell-/Codeausführung. Eine sichere Bearbeitung braucht zwei Modellaufrufe: einen Zug, der
-alle Änderungen anwendet und mit `finish` endet (automatisch abgebrochen, wenn eine Änderung darin
-scheitert), plus das Review. Die Web-Oberfläche (`src/docx_agent/web/`, FastAPI + statisches
-HTML/CSS/JS ohne Build-Schritt) führt denselben Graphen in einem Worker-Thread aus und zeigt
-Knoten-Updates als Fortschritt; CLI und UI nutzen dieselben Prüfungen.
+Ein expliziter LangGraph-`StateGraph`: Laden → Agent/Tools → deterministische Validierung →
+strukturiertes Modell-Review → Speichern, mit Rückfrage-Interrupts und begrenzten
+Zurücksetzen-und-Feedback-Schleifen. Das veränderliche Dokument liegt im Laufzeitkontext;
+gecheckpointete Nachrichten werden nur angehängt. Das Modell erhält nur typisierte
+Dokument-Tools, nie Shell- oder Code-Ausführung. Eine sichere Bearbeitung braucht zwei
+Modellaufrufe: einen Zug, der alle Änderungen anwendet und mit `finish` endet (automatisch
+abgebrochen, wenn eine Änderung in diesem Zug scheitert), plus das Review. Das Terminal-Menü
+(`src/docx_agent/menu.py`) und die Web-Oberfläche (`src/docx_agent/web/`, FastAPI mit statischem
+HTML/CSS/JS ohne Build-Schritt) nutzen denselben Graphen und alle Prüfungen.
 
-Eigene `zipfile`/lxml-Operationen serialisieren nur den Haupt-XML-Teil neu. Unberührte
-Paketbestandteile bleiben **nach Dekompression** bytegleich; unberührte Blöcke werden per
-kanonischem XML verglichen. Keine Bytegleichheit des gesamten ZIPs. python-docx erstellt
-Fixtures/öffnet Testausgaben, speichert aber keine Agentenausgabe.
+Die eigene `zipfile`/lxml-Schicht serialisiert nur den Haupt-XML-Teil neu. Alle anderen Teile
+behalten ihren exakten Inhalt nach dem Entpacken; unberührte Blöcke werden als kanonisches XML
+verglichen. Das ZIP als Ganzes muss nicht byte-identisch sein. python-docx erzeugt nur
+Test-Fixtures und öffnet Testausgaben erneut; es speichert nie Agent-Ausgaben. Details:
 [Prüfungen, Entscheidungen und Implementierung](docs/ARCHITECTURE.md).
 
-- Nur Haupttext, Tabellenzellentext und vorhandene Absatzstile. Keine Bearbeitung von Kopf-/
-  Fußzeilen, Fußnoten, Kommentaren, Textfeldern oder Linkzielen; keine Tabellen-/Bildeinfügung,
-  absatzübergreifenden Textspannen oder automatische Inhaltsverzeichnisse. Geschützte Objekte,
-  Felder und Änderungs-Runs werden abgelehnt, nicht stillschweigend entfernt.
-- Eigenständiges `verify` beanstandet beabsichtigte Überschriftenstiländerungen. Die Sitzung
-  prüft diese mit genauen Block-Berechtigungen; programmatisch gibt es `style_changes`.
-- Mehrdeutigkeitsbehandlung und Modellbewertung garantieren kein korrektes Verständnis.
-  Die Prüfung hat heuristische Zuordnungs-/Formatgrenzen; CI prüft keine gerenderten Seiten.
-- Checkpoints gelten nur im selben Prozess. Snapshot-/Baumkopierkosten passen zu Fallstudiengrößen.
+- Unterstützt: Text im Fließtext und in Tabellenzellen sowie vorhandene Absatzstile. Nicht
+  unterstützt: Kopf-/Fußzeilen, Fußnoten, Kommentare oder Textfelder bearbeiten; Tabellen oder
+  Bilder einfügen; Hyperlink-Ziele ändern; Textbereiche über Absätze hinweg; Inhaltsverzeichnisse
+  neu aufbauen. Geschützte Objekte, Felder und Überarbeitungen werden abgelehnt, nie still
+  entfernt.
+- Eigenständiges `verify` lehnt beabsichtigte Überschriftenstil-Änderungen ab; die
+  Bearbeitungssitzung prüft sie mit exakten Berechtigungen pro Block.
+- Rückfragen und Modell-Review garantieren nicht die Absicht. Die Absatzzuordnung im Prüfer ist
+  heuristisch, und CI prüft keine gerenderten Seiten.
+- Checkpoints liegen im Speicher: Eine pausierte Bearbeitung übersteht keinen Neustart.
 
-## Evaluation
+## Evaluationen
 
-`make eval` zeigt nur den Plan. Ausdrücklicher Live-Aufruf:
+`make eval` zeigt den Plan, ohne ein Modell aufzurufen. Ein Live-Lauf muss sein Aufruflimit
+angeben:
 
 ```sh
 uv run python -m evals.run --live --max-calls 36 --retry-unavailable
 ```
 
-Sechs synthetische Fälle; hartes gemeinsames Aufruflimit; optional eine 503-Wiederholung je Fall
-innerhalb dieses Limits. GitHub-Evals nur per `workflow_dispatch`.
-[Runner-Details](evals/README.md). Gemessen: erste Baseline **5/6**, danach Prompt-Korrektur für den Mehrdeutigkeitsfall. Mit dem Prompt vor
-der `finish`-Optimierung im selben Zug **bestanden alle 6/6 Fälle** (35 Gemini-Aufrufe, fallweise ausgeführt, da der
-Free Tier 15 Anfragen/Minute erlaubt; jeder Fehlschlag war ein Provider-503). Jeder Fall
-bestand einmal: keine gemessene Erfolgsquote. Neun weitere unbekannte Anweisungen (Hinzufügen,
-Entfernen, Ersetzen, Linktext, Logo, nicht unterstützte Tabelle, deutsches macOS-`.docx`) wurden
-live mit Gemini und Claude Sonnet 5.5 geprüft: keine gespeicherte Ausgabe verletzte die
-Integrität; Fehlschläge waren Ablehnungen oder Provider-Fehler. [Finaler Nachweis](evals/baselines/2026-11-17-final.md) ·
+Sechs synthetische Fälle mit hartem gemeinsamem Aufrufbudget und höchstens einer 503-Wiederaufnahme
+pro Fall. Auf GitHub laufen Evals nur per manuellem Start. [Runner-Details](evals/README.md).
+
+Gemessen: Die erste Baseline bestand **5/6**; eine Prompt-Korrektur behob den Mehrdeutigkeitsfall.
+Mit dem Prompt vor der `finish`-Optimierung im selben Zug bestanden **alle 6/6 Fälle** (35
+Gemini-Aufrufe, Fall für Fall, da die kostenlose Stufe 15 Anfragen pro Minute erlaubt; jedes
+Nichtbestehen war ein Anbieter-503). Jeder Fall bestand einmal: ein Korrektheitsnachweis, keine
+gemessene Erfolgsquote. Neun weitere unbekannte Anweisungen liefen live auf Gemini und Claude
+Sonnet 5.5: Keine gespeicherte Ausgabe verletzte die Integrität; Fehlschläge waren Ablehnungen
+oder Anbieterfehler. [Abschließender Nachweis](evals/baselines/2026-11-17-final.md) ·
 [erste Baseline](evals/baselines/2026-11-17.md).
+
+Kosten: Alle Gemini-Läufe nutzten die kostenlose Stufe ($0). Claude Sonnet 5.5 diente nur der
+Live-Verifikation, etwa $0,07 des vorab festgelegten Budgets von $2: **$1,93 sind noch übrig**.
+
+## Fehlerbehebung
+
+| Symptom | Lösung |
+|---|---|
+| `Got unexpected extra argument(s)` | Hinter dem Befehl wurde etwas mit eingefügt, z. B. ein `# Kommentar` (zsh wertet ihn nicht als Kommentar). Den Befehl allein ausführen. |
+| `ModuleNotFoundError: No module named 'docx_agent'` (macOS) | Das Projekt liegt in iCloud Drive: die Drei-Zeilen-Lösung aus Schritt 2 verwenden. |
+| Das Menü zeigt `no API key found` | Schritt 3: eine `.env` mit `GEMINI_API_KEY` oder `ANTHROPIC_API_KEY` in den Projektordner legen, dann neu starten. |
+| `503 UNAVAILABLE` oder `429` | Der Anbieter ist ausgelastet oder begrenzt die Rate (vorübergehend). Eine Minute warten und erneut versuchen oder das Modell wechseln (`4` im Menü). Es wurde nichts gespeichert. |
+| `port 8765 is already in use` | Die Web-Oberfläche läuft bereits in einem anderen Terminal: diese verwenden oder dort mit Strg+C beenden. Oder einen anderen Port wählen: `uv run docx-agent ui --port 8780`. |
+| Eine Seite zeigt `{"detail":"Not Found"}`, oder eine Änderung erscheint nicht | Es läuft noch eine Web-Oberfläche, die vor der Code-Aktualisierung gestartet wurde. Mit Strg+C beenden und neu starten. |
+
+## Projektstruktur
+
+```text
+src/docx_agent/document/   OPC-Paket-I/O, Blockindex, lauf-bewusste Bearbeitung, Integritätsprüfer (kein LLM)
+src/docx_agent/agent/      LangGraph-Zustand, Tools, Prompts, Modelle, Graph
+src/docx_agent/menu.py     interaktives Terminal-Menü
+src/docx_agent/web/        lokale Web-Oberfläche (FastAPI + statische Dateien)
+documents/                 Ihre .docx-Dateien für das Menü (Inhalt von git ignoriert)
+samples/                   drei synthetische Beispiele mit echten Modellausgaben
+tests/                     Unit-, Property-, Graph-, CLI-, Menü- und Web-Tests (Skript-Modell)
+evals/                     manuelle Live-Evaluationen
+docs/                      Architektur, Entwicklungsablauf, Übergabe
+```

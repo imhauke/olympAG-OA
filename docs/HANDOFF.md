@@ -1,32 +1,38 @@
 # Handoff
 
-Read [AGENTS.md](../AGENTS.md) for working rules. All nine planned steps are complete.
-Continue only on `main`; the human stages/commits/pushes. No live calls without announcing a cap.
+Read [AGENTS.md](../AGENTS.md) for working rules. All nine planned steps are complete; the
+project is in delivery polish. Work only on `main`; the human stages, commits and pushes. No live
+model calls without announcing a call cap first.
 
 ## Current state
 
-- CLI: `ui`, `inspect`, `edit`, `verify`; explicit LangGraph with clarification, validation, review,
-  bounded reset/feedback and separate output/report publication.
-- Local web UI (`uv run docx-agent ui`, `src/docx_agent/web/`): upload, instruction, live progress,
-  inline clarification, word-level diff, download of document + report, metadata-only history in
-  `~/.docx-agent/history.json`. Rendered and checked in headless Chrome with a scripted model;
-  **not yet exercised against live models by the human** (pending feedback).
-- Speed/cost: an edit may end with `finish` in the same turn (2 model calls for a confident edit
-  instead of 3). Offline graph tests cover it; **live evals predate this change** and should be
-  rerun (`evals/README.md`) before quoting final-version numbers.
-- Native Gemini `gemini-3.5-flash-lite`, medium thinking, tested live. Claude Sonnet 5.5 (`--provider anthropic`) passed a live smoke edit (verify OK) on 2026-11-17.
-- Three real synthetic sample outputs. Eval evidence: first baseline 5/6 + targeted 1/1; prompt before the same-turn finish
-  optimization 6/6 (each case passed once, run case by case on the free tier). See
-  [final](../evals/baselines/2026-11-17-final.md) and [first](../evals/baselines/2026-11-17.md) baselines.
-- Last gate: `HYPOTHESIS_PROFILE=ci make check` — 296 tests, 98.58% source coverage.
-  Passed on macOS and a clean Linux container with locked dependencies; original CI failure reproduced.
-  Cleanup verification also passed sample reproducibility, CLI integrity and eval plan (no live calls).
-- This cleanup removes tracked coverage conflict copies, the case-study PDF from the deliverable,
-  development-only Claude hooks/logs, repeated documentation and unused direct dependencies.
-  Original brief/helpers are preserved locally in ignored `out/review-cleanup/`.
-- CI failure in sample reproducibility: host-dependent Pillow logo rendering. Generator now uses
-  the original `samples/assets/logo.png`; regression tests forbid host font loading. Stored
-  DOCX files and provenance hashes are unchanged. Remote CI needs a human commit/push.
+- **Entry points.** `uv run docx-agent` (no command) opens the interactive terminal menu
+  ([`menu.py`](../src/docx_agent/menu.py)): edit, preview, verify, switch model, open the web
+  UI. It lists `documents/*.docx`, `documents/edited/*.docx` and `samples/*/input.docx`, and writes
+  results to `documents/edited/<name>.edited.docx` (+ `.report.json`), never overwriting.
+  `documents/` contents are git-ignored except its README. One-shot commands `edit`, `inspect`,
+  `verify`, `ui` and `version` remain for scripts, CI and evals.
+- **Web UI** (`uv run docx-agent ui`, [`web/`](../src/docx_agent/web/)): upload, instruction,
+  live progress, inline clarification, word-level diff, download of document and report,
+  metadata-only history in `~/.docx-agent/history.json`. A **How it was built** page at `/docs`
+  ([`static/docs.html`](../src/docx_agent/web/static/docs.html)) explains scope, planning
+  decisions, portability, architecture, integrity, the test-and-fix loop, evidence, timeline and
+  limits. Its figures (tests, coverage, eval results) are hand-written: update them when they change.
+- Menu and web share progress text and failure wording (`progress_detail`, `friendly_reason`,
+  `NODE_STEP` in [`web/jobs.py`](../src/docx_agent/web/jobs.py)) and `PROVIDER_LABELS`/`Provider`
+  from [`agent/models.py`](../src/docx_agent/agent/models.py).
+- **Speed/cost:** an edit may end with `finish` in the same turn (2 model calls for a confident
+  edit instead of 3). Offline graph tests cover it; **live evals predate this change**.
+- Providers: native Gemini `gemini-3.5-flash-lite` (default, evals and samples) and Claude Sonnet
+  5.5 (live smoke edit and unseen cases, verify OK). Eval evidence: first baseline 5/6 + targeted
+  1/1; 6/6 before the same-turn finish optimisation. See
+  [final](../evals/baselines/2026-11-17-final.md) and [first](../evals/baselines/2026-11-17.md).
+- Budget: Anthropic credit **$1.93 of the original $2 remains** (about $0.07 spent on Claude
+  verification); Gemini runs are free tier. Reviewers' use of the courtesy key draws on it.
+- **Pending human checks:** run the README quick start from zero (menu and web UI) with both
+  models, and give feedback on the UI and on the same-turn finish optimisation.
+- Last gate: `HYPOTHESIS_PROFILE=ci make check`: 317 tests, 98.14% source coverage. The menu and
+  docs page were also rendered and checked headlessly (scripted model; desktop and 390 px).
 
 ## Verify and maintain
 
@@ -41,11 +47,12 @@ before editing. Keep the deterministic engine/tests and static sample/eval prove
 Style edits use exact `style_changes` permissions; standalone `verify` has no style flag.
 Ambiguity policy is prompt-based; a model can still guess. Checkpoints resume only in-process.
 
-`.env`, `.venv`, caches, `out/` and raw eval reports are local/ignored. Keep private documents
-out of fixtures. Courtesy Gemini and Anthropic keys last seven days from 2026-11-17 (until 2026-11-24); the
-owner must actually revoke both review keys. No application expiry/scheduler exists.
+`.env`, `.venv`, caches, `out/`, `documents/*` and raw eval reports are local and ignored. Keep
+private documents out of fixtures. Personal design sources (`.impeccable/`, `DESIGN.md`) are
+ignored on purpose. Courtesy Gemini and Anthropic keys last seven days from 2026-11-17 (until
+2026-11-24); the owner must actually revoke both. No application expiry or scheduler exists.
 
 Known local issue: iCloud (File Provider) hides editable-install `.pth` files and ignores
-`.nosync`. On this machine `.venv` is a symlink to `~/.venvs/olympag-oa` (created with
-`UV_PROJECT_ENVIRONMENT`), outside iCloud; see README. Moving a venv requires reinstalling.
-Remote evals are manual-only; no agent dispatch or further model calls are needed for delivery.
+`.nosync`. On the owner's machine `.venv` is a symlink to `~/.venvs/olympag-oa` (created with
+`UV_PROJECT_ENVIRONMENT`), outside iCloud; see README step 2. Moving a venv requires reinstalling.
+Remote evals are manual-only; no further model calls are needed for delivery.

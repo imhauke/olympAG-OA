@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import socket
 import threading
 import webbrowser
 from pathlib import Path
@@ -24,18 +25,27 @@ from docx_agent.document.integrity import IntegrityReport, check
 from docx_agent.document.package import DocxPackage, PackageError
 from docx_agent.document.styles import StyleCatalog
 from docx_agent.document.view import render
+from docx_agent.menu import Menu
 from docx_agent.web.app import create_app
 
 app = typer.Typer(
     name="docx-agent",
-    help="Edit existing Word (.docx) documents with natural-language instructions.",
-    no_args_is_help=True,
+    help="Edit existing Word (.docx) documents with natural-language instructions. "
+    "Run without a command to open the interactive menu.",
+    invoke_without_command=True,
     add_completion=False,
 )
 
 EXIT_INVALID_INPUT = 2
 
 DocxPath = Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)]
+
+
+@app.callback()
+def main(ctx: typer.Context) -> None:
+    """Open the interactive menu when no command is given."""
+    if ctx.invoked_subcommand is None:
+        Menu(settings_factory=Settings, model_factory=create_model, launch_ui=ui).run()
 
 
 def _fail(message: str) -> typer.Exit:
@@ -194,6 +204,15 @@ def edit(
         raise typer.Exit(1)
 
 
+def _port_free(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
+
 @app.command()
 def ui(
     port: Annotated[int, typer.Option(help="Local port.")] = 8765,
@@ -207,6 +226,11 @@ def ui(
         typer.echo(
             "warning: no GEMINI_API_KEY or ANTHROPIC_API_KEY found; edits will be disabled.",
             err=True,
+        )
+    if not _port_free(port):
+        raise _fail(
+            f"port {port} is already in use. Is the UI already running in another terminal? "
+            f"Stop it there with Ctrl+C, or choose another port: --port {port + 15}"
         )
     url = f"http://127.0.0.1:{port}"
     typer.echo(f"docx-agent UI on {url}  (Ctrl+C to stop)")

@@ -17,6 +17,9 @@ build/
 ~$*.docx
 # Scratch outputs
 /out/
+# Your own documents for the interactive menu (only its README is tracked)
+/documents/*
+!/documents/README.md
 /evals/reports/
 # Claude Code local-only settings
 .claude/settings.local.json

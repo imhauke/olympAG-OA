@@ -28,10 +28,13 @@ hooks and generated logs were removed from the final deliverable. The gate and C
 | Pre-submission check on a macOS-written `.docx`: quoting an en dash as '-' retyped the document's dash. | [Unit regression](../tests/unit/test_ops.py) + [property](../tests/property/test_runs_properties.py): forgiving matches restore the original characters where text is unchanged; exact quotes can still change typography on purpose. |
 | Same check: inserting " (Dr.)" after a bold name plus a date edit was rejected as a formatting change. | Checker false positive (char-only diff paired the new bold space with an old plain one). [Regression](../tests/unit/test_integrity.py): align (char, format) pairs first; detection next to edits still tested. |
 | UI review (headless Chrome, scripted model): a replaced bullet rendered as an unreadable word-by-word interleave. | [Web regression](../tests/web/test_app.py): text that is mostly rewritten is shown whole (old struck through, then new). |
+| Docs page review (headless Chrome): the timeline rendered every text fragment as its own grid cell. | Each entry's text is wrapped in one element; desktop and 390 px screenshots checked, no horizontal scroll. |
 | Sample reproducibility passed on macOS but failed in Linux CI. | Pillow font rendering changed logo bytes. Reuse the original synthetic PNG; [regression](../tests/test_samples.py) disables host font loading. Existing DOCX/provenance stay unchanged. |
 
 ## Measured evidence
 
+- Budget: $2 of Anthropic credit was declared before the first live call. Gemini runs used the
+  free tier; Claude Sonnet 5.5 verification cost about $0.07, so **$1.93 remains**.
 - Three [live sample outputs](../samples/README.md), with input/output hashes, tokens and reports.
   Sample/smoke attempts used **33 Gemini invocations**, including three 503s; failures were not
   published as outputs. Final saved runs: session 6 calls (one retry), treatment 5, letter 5.
@@ -42,10 +45,11 @@ hooks and generated logs were removed from the final deliverable. The gate and C
   not a statistical reliability claim. Nine unseen live cases on Gemini and Sonnet 5.5 found one
   prompt issue (unsupported features could be approximated; a first wording over-refused link
   text) and two deterministic bugs, all fixed with regressions.
-- Last full gate: **296 tests, 98.58% source coverage**; same checks passed with the CI Hypothesis
+- Last full gate: **317 tests, 98.14% source coverage**; same checks passed with the CI Hypothesis
   profile. Local/static integrity tests, corruption tests and real graph execution are separate evidence.
 
 All public fixtures are synthetic. A private user document was edited locally and remains
-outside the deliverable; it is not live Gemini evidence. No Anthropic calls were made.
+outside the deliverable; it is not live Gemini evidence. Claude Sonnet 5.5 was used only for live
+verification (a smoke edit and the unseen cases above).
 Visual layout remains a human check. Live samples/evals require explicit bounded runs; normal
 tests do not spend quota. Courtesy credentials are supplied privately and revoked by their owner.

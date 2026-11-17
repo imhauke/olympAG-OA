@@ -34,7 +34,7 @@ Status = Literal["running", "question", "done", "failed", "error"]
 ModelFactory = Callable[[Settings], BaseChatModel]
 
 STEPS = ("Reading the document", "Editing", "Checking integrity", "Reviewing the result")
-_NODE_STEP = {
+NODE_STEP = {
     "load": 0,
     "agent": 1,
     "tools": 1,
@@ -45,6 +45,28 @@ _NODE_STEP = {
     "save": 3,
 }
 KEEP_JOBS = 12
+
+
+def progress_detail(node: str, edits: int) -> str | None:
+    """Human-readable detail for a finished graph node (shared by the web UI and the menu)."""
+    applied = f"{edits} edit{'s' if edits != 1 else ''} applied"
+    return {
+        "load": "Indexing paragraphs and tables",
+        "agent": applied if edits else "Planning",
+        "tools": applied,
+        "retry": "Starting again from the original",
+        "validate": "Comparing every part with the original",
+        "review": "Checking the result against your instruction",
+        "save": "Preparing your file",
+    }.get(node)
+
+
+def friendly_reason(reason: str | None) -> str:
+    """Why nothing was saved, phrased for a person rather than a log."""
+    text = str(reason or "The edit could not be completed.")
+    if text.startswith("Validation failed"):
+        return "The integrity check rejected the edit, so nothing was saved."
+    return text.removeprefix("Review rejected: ")
 
 
 @dataclass
@@ -189,21 +211,12 @@ class _Runner:
             self._end("error", f"Unexpected error: {type(exc).__name__}: {exc}")
 
     def _progress(self, node: str) -> None:
-        edits = len(self.job.session.edits)
-        details = {
-            "load": "Indexing paragraphs and tables",
-            "agent": f"{edits} edit{'s' if edits != 1 else ''} applied" if edits else "Planning",
-            "tools": f"{edits} edit{'s' if edits != 1 else ''} applied",
-            "retry": "Starting again from the original",
-            "validate": "Comparing every part with the original",
-            "review": "Checking the result against your instruction",
-            "save": "Preparing your file",
-        }
+        detail = progress_detail(node, len(self.job.session.edits))
         with self.job.lock:
-            self.job.step = max(self.job.step, _NODE_STEP.get(node, self.job.step))
+            self.job.step = max(self.job.step, NODE_STEP.get(node, self.job.step))
             if node == "retry":
                 self.job.step = 1
-            self.job.detail = details.get(node, self.job.detail)
+            self.job.detail = detail or self.job.detail
 
     def _finish(self, values: dict[str, Any]) -> None:
         job = self.job
@@ -224,15 +237,10 @@ class _Runner:
                 }
             self._end("done", "")
         else:
-            reason = str(values.get("reason") or "The edit could not be completed.")
             violations = list((values.get("integrity") or {}).get("violations", []))
-            if reason.startswith("Validation failed"):
-                reason = "The integrity check rejected the edit, so nothing was saved."
-            elif reason.startswith("Review rejected: "):
-                reason = reason.removeprefix("Review rejected: ")
             with job.lock:
                 job.result = {"violations": violations}
-            self._end("failed", reason)
+            self._end("failed", friendly_reason(values.get("reason")))
 
     def _end(self, status: Status, message: str) -> None:
         job = self.job

@@ -1,4 +1,5 @@
 import json
+import socket
 from pathlib import Path
 
 import pytest
@@ -195,6 +196,7 @@ def test_ui_command_binds_localhost_and_opens_browser(monkeypatch: pytest.Monkey
             pass
 
     monkeypatch.setattr(cli.threading, "Timer", Timer)
+    monkeypatch.setattr(cli, "_port_free", lambda port: True)
     monkeypatch.setattr(cli, "Settings", lambda: Settings(_env_file=None, GEMINI_API_KEY=""))
     result = runner.invoke(cli.app, ["ui", "--port", "9123"])
     assert result.exit_code == 0, result.output
@@ -204,3 +206,17 @@ def test_ui_command_binds_localhost_and_opens_browser(monkeypatch: pytest.Monkey
     assert "no GEMINI_API_KEY or ANTHROPIC_API_KEY" in result.stderr
     assert runner.invoke(cli.app, ["ui", "--no-open"]).exit_code == 0
     assert len(opened) == 1
+
+
+def test_ui_command_reports_a_busy_port(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli.uvicorn, "run", lambda *a, **k: pytest.fail("must not start"))
+    monkeypatch.setattr(cli, "Settings", lambda: Settings(_env_file=None, GEMINI_API_KEY="k"))
+    with socket.socket() as busy:
+        busy.bind(("127.0.0.1", 0))
+        busy.listen()
+        port = busy.getsockname()[1]
+        assert not cli._port_free(port)
+        result = runner.invoke(cli.app, ["ui", "--port", str(port), "--no-open"])
+    assert result.exit_code == 2
+    assert "already in use" in result.stderr
+    assert cli._port_free(port)

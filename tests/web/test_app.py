@@ -261,6 +261,17 @@ def test_corrupt_history_file_is_treated_as_empty(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------- presentation helpers
 
 
+def test_editor_and_docs_pages_link_to_each_other(tmp_path: Path) -> None:
+    http = client(tmp_path, Models())
+    editor, docs = http.get("/"), http.get("/docs")
+    assert editor.status_code == docs.status_code == 200
+    assert 'href="/docs"' in editor.text
+    assert "How it was built" in docs.text
+    assert 'href="/"' in docs.text
+    assert http.get("/static/docs.html").status_code == 200
+    assert http.get("/openapi.json").status_code == 200  # docs route did not replace the API
+
+
 def test_segments_and_locations() -> None:
     assert segments("weekly session", "biweekly session") == [
         {"kind": "delete", "text": "weekly"},

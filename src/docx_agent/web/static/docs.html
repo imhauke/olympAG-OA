@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f3">
+  <title>How docx-agent was built</title>
+  <meta name="description" content="The decisions behind docx-agent: scope set before code, integrity proven by tests, and a development loop built to survive a change of agent or provider.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7.2' fill='%23121316'/%3E%3Cpath d='M10 7.5h8l4.5 4.5v12.5H10z' fill='none' stroke='%23fff' stroke-width='1.75' stroke-linejoin='round'/%3E%3Cpath d='M13.5 16.5v5' stroke='%238db4ff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preload" href="/static/fonts/MonaSans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <svg width="0" height="0" class="sprite" aria-hidden="true">
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6.5 3.5h7L18 8v12.5H6.5z"/><path d="M13.5 3.5V8H18"/></symbol>
+  </svg>
+
+  <main class="page page-docs">
+    <nav class="topnav" aria-label="Sections">
+      <a href="/">Editor</a>
+      <a href="/docs" aria-current="page">How it was built</a>
+    </nav>
+
+    <header class="masthead">
+      <div class="tile" aria-hidden="true">
+        <svg class="glyph"><use href="#i-doc"/></svg>
+        <span class="tile-caret"></span>
+      </div>
+      <h1>How it was built</h1>
+      <p class="lede">The decisions behind docx-agent: scope fixed before any code, integrity proven by tests rather than promised, and a workflow that could change agent or provider halfway through.</p>
+    </header>
+
+    <ul class="facts" aria-label="Key figures">
+      <li class="fact"><b>1 day</b><span>From the first commit (09:59) to the web UI (23:05)</span></li>
+      <li class="fact"><b>$1.93</b><span>Left of the $2 Claude budget: only $0.07 spent</span></li>
+      <li class="fact"><b>6/6</b><span>Live eval cases passed; no saved output ever broke integrity</span></li>
+      <li class="fact"><b>317</b><span>Offline tests, 98% coverage, zero API calls in CI</span></li>
+    </ul>
+
+    <nav class="doc-index" aria-label="On this page">
+      <a href="#scope">Scope</a>
+      <a href="#planning">Planning</a>
+      <a href="#portability">Portability</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#integrity">Integrity</a>
+      <a href="#loop">Test-and-fix loop</a>
+      <a href="#evidence">Evidence</a>
+      <a href="#timeline">Timeline</a>
+      <a href="#limits">Limits and next steps</a>
+    </nav>
+
+    <!-- 01 -------------------------------------------------------------- -->
+    <section class="doc-section" id="scope" aria-labelledby="scope-title">
+      <p class="eyebrow">01</p>
+      <h2 id="scope-title">Scope before code</h2>
+      <p class="doc-lede">The brief is graded on editing reliability and document integrity first. Before writing anything I fixed three numbers: how large a document may be, how fast an edit must be, and how much the whole project may spend. Each limit has a reason, and the code enforces most of them.</p>
+
+      <h3>Document size</h3>
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th scope="col">Level</th><th scope="col">Limit</th><th scope="col">Reason</th></tr></thead>
+          <tbody>
+            <tr><td>Supported and tested</td><td>≤ 15 pages · ≤ 300 blocks · <code>.docx</code> ≤ 5 MB</td><td>The whole document view fits one model call (20,000-character budget, about 5k tokens).</td></tr>
+            <tr><td>Degraded mode</td><td>Up to ~3,000 paragraphs (~150 pages)</td><td>The agent switches to <code>find_text</code> and range views: it still works, with more calls and cost.</td></tr>
+            <tr><td>Rejected</td><td>&gt; 200 MB uncompressed, &gt; 2,000 parts, encrypted, <code>.doc</code></td><td>Refused up front by the package layer, before any model sees the file.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Speed</h3>
+      <div class="cards">
+        <div class="card">
+          <h4>Deterministic layer</h4>
+          <p>Load, view, edit, check and save in under 1 second for 3,000 paragraphs. Measured at about 0.4 s for a full view and 0.4 s for validation.</p>
+        </div>
+        <div class="card">
+          <h4>One instruction, end to end</h4>
+          <p>Target p50 ≤ 30 s, never more than 90 s. Planned at 3–5 model calls; a confident edit now takes 2 (see <a href="#architecture">same-turn finish</a>). Turns and retries are capped in configuration.</p>
+        </div>
+      </div>
+
+      <h3>Budget: $2, on purpose</h3>
+      <p>My remaining API credit was $2 on Claude Sonnet 5.5 ($2 per million input tokens, $10 per million output). I allocated it before the first live call:</p>
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th scope="col">Use</th><th scope="col" class="num">Runs</th><th scope="col" class="num">Estimate</th></tr></thead>
+          <tbody>
+            <tr><td>First real test (catch common provider errors)</td><td class="num">3</td><td class="num">~$0.40</td></tr>
+            <tr><td>Deliverable samples (the three committed outputs)</td><td class="num">3–4</td><td class="num">~$0.50</td></tr>
+            <tr><td>Mini evaluation (five cases, one run each)</td><td class="num">5</td><td class="num">~$0.60</td></tr>
+            <tr><td>Reserve</td><td class="num">—</td><td class="num">~$0.50</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Then I made it cheaper still: I added <b>Gemini 3.5 Flash-Lite</b> for its free quota, ran samples and evals on it at $0, and kept Claude Sonnet 5.5 for live verification. Both providers are wired through the same graph and checks.</p>
+      <p class="callout"><b>Result: $1.93 of the $2 is still unspent.</b> The whole project cost about $0.07 in Claude credit, against an allocation of $2.00; the reserve was never touched.</p>
+
+      <h3>Safeguards: planned against shipped</h3>
+      <ul class="checklist">
+        <li><span class="status is-shipped">Shipped</span><span><b>Cap the calls per run.</b> Editor turns and review calls are bounded in settings; live evals share a hard call budget (<code>--max-calls</code>). SDK retries are off, so nothing retries behind the graph's back.</span></li>
+        <li><span class="status is-shipped">Shipped</span><span><b>No real API calls in tests.</b> Every graph, CLI, menu and web test runs the real LangGraph with a scripted model.</span></li>
+        <li><span class="status is-shipped">Shipped</span><span><b>Announce the call count before every live run.</b> A rule in the agent instructions, and the CLI prints the cap before it starts.</span></li>
+        <li><span class="status">Adapted</span><span><b>Log tokens and cost.</b> Call and token counts are recorded for every sample and eval run; cost is estimated only when rates are supplied.</span></li>
+        <li><span class="status">Replaced</span><span><b>Abort a run above $0.30.</b> Hard call caps replaced price tracking: they bound cost for any provider, including a free one.</span></li>
+      </ul>
+    </section>
+
+    <!-- 02 -------------------------------------------------------------- -->
+    <section class="doc-section" id="planning" aria-labelledby="planning-title">
+      <p class="eyebrow">02</p>
+      <h2 id="planning-title">Planning: the model proposes, I decide</h2>
+      <p class="doc-lede">I planned with Claude Opus 5.5 at high effort and gave it the constraints, not the solution. Its plan came back as explicit choices, each with a recommendation, and I decided every one.</p>
+
+      <blockquote class="prompt">
+        <p>“We need to do this assessment; plan to cover all the core requirements. First cover the core requirements solidly, then we will consider adding a frontend and deploying it. A CI/CD pipeline must confirm every change. One branch, <code>main</code>: the project lasts 24–36 h. Do not commit autonomously; I make the commits. We take on the optional challenge, especially the test-and-fix loops. And remember that we must create synthetic data.”</p>
+        <footer>My planning prompt, lightly edited</footer>
+      </blockquote>
+
+      <div class="cards">
+        <div class="card">
+          <p class="card-q">Which LLM provider?</p>
+          <h4>Anthropic Claude</h4>
+          <p>Through <code>langchain-anthropic</code>, Sonnet 5.5 by default and configurable. Rejected: OpenAI, and a provider-agnostic setup with more configuration surface. Later I added Gemini 3.5 Flash-Lite for its free quota.</p>
+        </div>
+        <div class="card">
+          <p class="card-q">Which Python tooling?</p>
+          <h4>uv + Python 3.12</h4>
+          <p>My machine had Python 3.10 and no uv. uv brings a lockfile, manages the Python version itself and is trivial in CI. Rejected: pip + venv on 3.10.</p>
+        </div>
+        <div class="card">
+          <p class="card-q">Live LLM calls in CI?</p>
+          <h4>Deterministic CI, manual live evals</h4>
+          <p>Every push runs lint, types and tests with a scripted model. Live evals run only on demand (<code>workflow_dispatch</code>). Rejected: live evals on every push (costly, flaky).</p>
+        </div>
+        <div class="card">
+          <p class="card-q">An HTTP API from the start?</p>
+          <h4>CLI first, API with the frontend</h4>
+          <p>The core phase stayed focused on editing and integrity. FastAPI arrived with the web UI, once the engine was proven.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 -------------------------------------------------------------- -->
+    <section class="doc-section" id="portability" aria-labelledby="portability-title">
+      <p class="eyebrow">03</p>
+      <h2 id="portability-title">Built to survive a change of agent or provider</h2>
+      <p class="doc-lede">When the challenge started, my weekly Claude Code usage was already at 95%. Running out halfway was a real risk, so before step two I made the project portable.</p>
+      <div class="usage" role="img" aria-label="Claude Code usage at the start: session 6%, weekly 95%">
+        <div class="usage-row"><span>Session (5 h)</span><span class="usage-bar"><i style="width: 6%"></i></span><b>6%</b></div>
+        <div class="usage-row"><span>Weekly (7 days)</span><span class="usage-bar is-high"><i style="width: 95%"></i></span><b>95%</b></div>
+      </div>
+      <ul class="plain-list">
+        <li><b>Provider-neutral rules.</b> <code>AGENTS.md</code> holds the working rules and integrity invariants for any coding agent; <code>CLAUDE.md</code> only imports it.</li>
+        <li><b>A handoff file, updated at every checkpoint.</b> <code>docs/HANDOFF.md</code> lets an agent with zero context continue, and it assumes Claude-specific integrations may not carry over.</li>
+        <li><b>One gate that any agent can run.</b> <code>make check</code> (lint, strict types, tests, coverage) is the same locally and in CI.</li>
+      </ul>
+      <p class="callout">It paid off: later checkpoints were done with a different coding agent, which picked up from the handoff and ran the same gate by hand where the Claude-only hooks no longer applied.</p>
+    </section>
+
+    <!-- 04 -------------------------------------------------------------- -->
+    <section class="doc-section" id="architecture" aria-labelledby="architecture-title">
+      <p class="eyebrow">04</p>
+      <h2 id="architecture-title">Architecture decisions</h2>
+      <p class="doc-lede">Each choice serves the first grading criterion: an edit must change exactly what was asked and nothing else, and that must be checkable.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h4>My own OPC layer, not python-docx</h4>
+          <p>python-docx re-serialises every part it loaded when it saves. I read and write the zip with <code>zipfile</code> and <code>lxml</code>, parse only <code>word/document.xml</code>, and copy every other part unchanged. python-docx only builds test fixtures and checks outputs.</p>
+        </div>
+        <div class="card">
+          <h4>Stable block IDs</h4>
+          <p><code>p0</code>, <code>t0.r1.c2.p0</code> for table cells, <code>n0</code> for inserted paragraphs, tombstones for deleted ones. IDs live in Python, never in the XML, and never shift during a session.</p>
+        </div>
+        <div class="card">
+          <h4>Run-aware editing</h4>
+          <p>A character map over the runs; boundary runs are split by cloning their formatting, so new text inherits the formatting of the text it replaces. Spans that touch images, fields or footnote references are refused with an error the model can act on.</p>
+        </div>
+        <div class="card">
+          <h4>Checks before judgment</h4>
+          <p>A deterministic integrity check runs first; only then does a separate model review the result through JSON-schema structured output. A failure resets the document to the original and appends feedback; the history is never rewritten.</p>
+        </div>
+        <div class="card">
+          <h4>Two calls for a confident edit</h4>
+          <p>The model may apply every edit and call <code>finish</code> in the same turn, saving a round trip. If any edit in that turn fails, <code>finish</code> is cancelled and the model sees why.</p>
+        </div>
+        <div class="card">
+          <h4>Spending bounded by construction</h4>
+          <p>SDK retries are disabled, call caps live in the graph, and the model gets no shell or code execution, only typed document tools. No <code>temperature</code> and no forced <code>tool_choice</code>, which current Claude models reject.</p>
+        </div>
+      </div>
+
+      <h3>An explicit StateGraph, not a prebuilt agent</h3>
+      <p>Every route is declared, and a test pins the compiled graph's edges, so the control flow can be read and tested rather than inferred.</p>
+      <div class="flow" aria-label="Graph: load, agent and tools, validate, review, save">
+        <span>Load</span><i aria-hidden="true">→</i>
+        <span>Agent ⇄ tools</span><i aria-hidden="true">→</i>
+        <span>Validate</span><i aria-hidden="true">→</i>
+        <span>Review</span><i aria-hidden="true">→</i>
+        <span class="is-end">Save</span>
+      </div>
+      <p class="caption flow-note">A question pauses the graph with <code>interrupt()</code> and resumes with your answer. A failed check or a rejected review resets to the original and retries, up to a cap; when the retries run out, nothing is written.</p>
+    </section>
+
+    <!-- 05 -------------------------------------------------------------- -->
+    <section class="doc-section" id="integrity" aria-labelledby="integrity-title">
+      <p class="eyebrow">05</p>
+      <h2 id="integrity-title">How integrity is proven</h2>
+      <p class="doc-lede">Five invariants, enforced by the checker on every edit and by the test suite on every push.</p>
+      <ol class="invariants">
+        <li>Zip parts we did not edit keep their exact content, with the same names, order and compression.</li>
+        <li>Paragraphs and tables an edit did not touch are identical as canonical XML.</li>
+        <li>Inside an edited paragraph, every character outside the edit keeps its formatting.</li>
+        <li>Protected content (drawings, fields, footnote references, section properties) is never removed silently.</li>
+        <li>python-docx never saves agent output.</li>
+      </ol>
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th scope="col">Layer</th><th scope="col">What it proves</th></tr></thead>
+          <tbody>
+            <tr><td>Round trip</td><td>The first test written: loading and saving without edits changes nothing.</td></tr>
+            <tr><td>Unit and corruption tests</td><td>Every tool and refusal path works, and the checker catches deliberately injected damage: changed formatting, a dropped image, an altered untouched paragraph.</td></tr>
+            <tr><td>Property-based (Hypothesis)</td><td>Random paragraphs, run splits and formats with random edits: the text is right, outside formatting is preserved and exactly one block is touched.</td></tr>
+            <tr><td>Graph, CLI, menu and web</td><td>The real LangGraph with a scripted model: happy path, clarification, failed validation, rejected review, exhausted retries.</td></tr>
+            <tr><td>Committed samples</td><td>CI re-verifies the three real model outputs against their inputs on every push.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 06 -------------------------------------------------------------- -->
+    <section class="doc-section" id="loop" aria-labelledby="loop-title">
+      <p class="eyebrow">06</p>
+      <h2 id="loop-title">The test-and-fix loop</h2>
+      <p class="doc-lede">I chose this optional challenge because it mirrors the product: the agent's own validate, review and retry cycle is the same pattern applied at runtime.</p>
+      <div class="flow" aria-label="Development loop">
+        <span>Change</span><i aria-hidden="true">→</i>
+        <span>Format + fast tests</span><i aria-hidden="true">→</i>
+        <span><code>make check</code></span><i aria-hidden="true">→</i>
+        <span>Review</span><i aria-hidden="true">→</i>
+        <span>My commit</span><i aria-hidden="true">→</i>
+        <span class="is-end">CI</span>
+      </div>
+      <div class="flow" aria-label="Live failure loop">
+        <span>Live failure</span><i aria-hidden="true">→</i>
+        <span>Recorded trace</span><i aria-hidden="true">→</i>
+        <span>Offline regression test</span><i aria-hidden="true">→</i>
+        <span>Fix</span><i aria-hidden="true">→</i>
+        <span class="is-end">Targeted live re-run</span>
+      </div>
+      <p>Early on, editor hooks ran lint and the fast tests after every edit, and a stop hook refused to let the coding agent finish while the gate was red. Those development-only hooks are not part of the deliverable; the gate and CI are.</p>
+
+      <h3>Failures the loop caught</h3>
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th scope="col">What went wrong</th><th scope="col">How it was fixed</th></tr></thead>
+          <tbody>
+            <tr><td>A broad replacement spread bold from a date into unchanged italic text.</td><td>The integrity check rejected it before saving. Edits are now token-aligned and applied atomically; a property test keeps the counterexample it found.</td></tr>
+            <tr><td>The model changed both of two ambiguous dates, and the reviewer approved.</td><td>The independent eval failed it. The trace became a regression test, and the prompt now requires a clarifying question.</td></tr>
+            <tr><td>The reviewer rejected a correctly inherited bullet because it saw only text.</td><td>Graph regression; the reviewer now sees the actual styles of the touched blocks.</td></tr>
+            <tr><td>On a macOS-written <code>.docx</code>, quoting an en dash as “-” retyped the document's dash.</td><td>Forgiving matches now write back the document's own characters where the text is unchanged.</td></tr>
+            <tr><td>Sample reproducibility passed on macOS and failed in Linux CI.</td><td>Pillow's font rendering differed by platform; the samples now reuse a fixed logo and a test forbids host fonts.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 07 -------------------------------------------------------------- -->
+    <section class="doc-section" id="evidence" aria-labelledby="evidence-title">
+      <p class="eyebrow">07</p>
+      <h2 id="evidence-title">What the measurements say, and don't</h2>
+      <div class="cards">
+        <div class="card">
+          <h4>5/6, then 6/6</h4>
+          <p>The first live baseline failed the ambiguity case. After a prompt fix, all six cases passed: 35 Gemini calls, $0. In that run every non-pass was a provider 503, never agent behaviour.</p>
+        </div>
+        <div class="card">
+          <h4>Nine unseen instructions</h4>
+          <p>Run live on Gemini and Claude Sonnet 5.5 with retries off: no saved output violated integrity. Failures were refusals or rejections with nothing written. The check also surfaced two deterministic bugs and a prompt issue, all fixed with regression tests.</p>
+        </div>
+      </div>
+      <p class="callout">Each eval case passed once: evidence of correctness, not a measured pass rate. The live runs predate the same-turn finish optimisation, which is covered by offline graph tests.</p>
+    </section>
+
+    <!-- 08 -------------------------------------------------------------- -->
+    <section class="doc-section" id="timeline" aria-labelledby="timeline-title">
+      <p class="eyebrow">08</p>
+      <h2 id="timeline-title">Timeline</h2>
+      <p class="doc-lede">Small checkpoints on <code>main</code>. The order matters: document damage became observable before a model was ever involved.</p>
+      <ol class="timeline">
+        <li><time>09:59</time><p><b>Scaffold.</b> uv, Ruff, strict mypy, pytest, Makefile and CI green on an empty suite.</p></li>
+        <li><time>10:49</time><p><b>Package layer.</b> The first test: a no-op load and save is byte-identical.</p></li>
+        <li><time>11:34</time><p><b>Run-aware operations</b> with unit and property tests.</p></li>
+        <li><time>11:54</time><p><b>Integrity checker</b>, plus <code>inspect</code> and <code>verify</code>.</p></li>
+        <li><time>12:23</time><p><b>LangGraph agent</b> and the <code>edit</code> command, tested with a scripted model.</p></li>
+        <li><time>12:47</time><p><b>First live runs</b> and reproducible synthetic samples; fixes from the first real test at 13:02.</p></li>
+        <li><time>13:56</time><p><b>Bounded live evaluations</b> and a manual CI workflow.</p></li>
+        <li><time>15:25</time><p><b>Documentation</b>, then a pass removing development-only files.</p></li>
+        <li><time>19:05</time><p><b>6/6 live evals</b>; Claude Sonnet 5.5 verified at 19:17.</p></li>
+        <li><time>20:10</time><p><b>Pre-submission reliability check</b> on unseen instructions.</p></li>
+        <li><time>23:05</time><p><b>Local web UI</b> and the two-call edit.</p></li>
+        <li><time>Then</time><p><b>Interactive terminal menu</b> and this page.</p></li>
+      </ol>
+    </section>
+
+    <!-- 09 -------------------------------------------------------------- -->
+    <section class="doc-section" id="limits" aria-labelledby="limits-title">
+      <p class="eyebrow">09</p>
+      <h2 id="limits-title">Limits I chose to state, and what's next</h2>
+      <div class="cards">
+        <div class="card">
+          <h4>Out of scope today</h4>
+          <p>Headers, footers, footnotes, comments and text boxes are read-only. No inserting tables or images, no changing hyperlink targets, no text spans across paragraphs. Unsupported requests get a question and an alternative, never a silent approximation.</p>
+        </div>
+        <div class="card">
+          <h4>Next</h4>
+          <p>Header and footer editing; durable checkpoints so a paused edit survives a restart; repeated eval runs for a real pass rate; rendering checks in Word or LibreOffice in CI; then a hosted deployment.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot caption">
+      <a class="action-link small" href="/">Back to the editor</a>
+      <span>All sample content is synthetic.</span>
+    </footer>
+  </main>
+</body>
+</html>

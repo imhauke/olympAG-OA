@@ -8,10 +8,13 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+Provider = Literal["google_genai", "anthropic"]
+PROVIDER_LABELS: dict[Provider, str] = {"google_genai": "Gemini", "anthropic": "Claude"}
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DOCX_AGENT_", env_file=".env", extra="ignore")
-    provider: Literal["google_genai", "anthropic"] = "google_genai"
+    provider: Provider = "google_genai"
     model: str | None = None
     effort: Literal["low", "medium", "high"] = "medium"
     max_retries: int = Field(default=2, ge=0, le=2)
@@ -20,14 +23,14 @@ class Settings(BaseSettings):
     anthropic_api_key: SecretStr | None = Field(default=None, validation_alias="ANTHROPIC_API_KEY")
     gemini_models: str = Field(default="gemini-3.5-flash-lite", validation_alias="GEMINI_MODELS")
 
-    def for_provider(self, provider: Literal["google_genai", "anthropic"]) -> Self:
+    def for_provider(self, provider: Provider) -> Self:
         """Same settings for another provider; a configured model ID only applies to its own."""
         if provider == self.provider:
             return self
         return self.model_copy(update={"provider": provider, "model": None})
 
-    def available_providers(self) -> list[Literal["google_genai", "anthropic"]]:
-        keys: dict[Literal["google_genai", "anthropic"], SecretStr | None] = {
+    def available_providers(self) -> list[Provider]:
+        keys: dict[Provider, SecretStr | None] = {
             "google_genai": self.gemini_api_key,
             "anthropic": self.anthropic_api_key,
         }
