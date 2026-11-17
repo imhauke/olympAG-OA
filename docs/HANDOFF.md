@@ -3,7 +3,7 @@
 > Read this first, then `AGENTS.md` (rules). Written so any agent (Claude, Codex, Cursor, Gemini…)
 > with **zero prior context** can continue. Updated at every commit checkpoint.
 
-**Last updated:** 2026-11-17 · after step 8 (bounded live evaluations) · **Deadline:** Thu 2026-11-19
+**Last updated:** 2026-11-17 · after step 9 (English/German guides and final documentation) · **Deadline:** Thu 2026-11-19
 
 ## 1. The task
 Olymp technical case study: a **LangGraph agent (Python)** that edits existing `.docx` files from
@@ -27,7 +27,7 @@ deploy to a subdomain of janguzman.com.
 | 6 | First live run (Gemini), fix provider gotchas | ✅ done |
 | 7 | Synthetic samples (`samples/`), outputs verified in CI | ✅ done |
 | 8 | Small live eval set + `evals.yml` (workflow_dispatch) + eval→regression loop | ✅ done |
-| 9 | README + `docs/DEVELOPMENT.md` final write-up | ⏭ next |
+| 9 | English/German README + final workflow/architecture documentation | ✅ done |
 
 ## 3. How to run
 ```bash
@@ -247,8 +247,31 @@ CI: `.github/workflows/ci.yml` runs the same gate on every push to `main` (no LL
 - `samples/README.md` explains the deliverables/runs. Root README links to examples/evidence.
   Word/LibreOffice visual review was not performed; it remains a human check.
 
-**Step 9:** final README: architecture diagram, decisions, limitations, testing explanation;
-finish `docs/DEVELOPMENT.md`.
+**Step 9 — delivered:** `README.md` is the English beginner walkthrough; `README.de.md` is its
+German counterpart. Both include download/uv installation, platform-specific terminal/file
+steps, locked setup, an API-free preview, key configuration, a bounded first edit, exact
+expected verification output, suggested inputs, own-file instructions, troubleshooting,
+configuration/exit codes, architecture diagrams, testing evidence and limitations.
+Advanced decisions and precise checker boundaries are in `docs/ARCHITECTURE.md`.
+`docs/DEVELOPMENT.md` now explains the actual human/AI roles, Claude hook automation versus
+manual Codex verification, concrete feedback loops, measured evidence and remaining limits.
+
+Reviewer convenience: a private courtesy Gemini key is documented for **seven days from the
+actual handover time**, with an exact expiry timestamp to be supplied privately. A preconfigured
+review `.env` can skip directly to the first edit; otherwise the guide explains key entry and
+replacement. **No key was published, created, expired or scheduled for revocation in this
+step.** The application has no automatic seven-day expiry. `docs/REVIEW_HANDOFF.md` tells the
+owner to prepare a separate minimal review credential/config, communicate the dates and revoke
+at expiry. Do not distribute the development `.env` or ignored private outputs.
+
+Verification: locked sync dry-run required no changes; local version/inspect/verify/help and
+plan-only eval commands worked. The English/German first-edit commands match; the actual CLI
+walkthrough passed using the scripted model, including exact standalone verification output
+and unchanged input. 53 local links/anchors were checked before the final handoff update.
+The full gate passed with `HYPOTHESIS_PROFILE=ci`: **269 tests, 99.44% source coverage**.
+No live model calls or production code/dependency changes were made for documentation.
+Installer instructions were checked against official uv documentation; Windows steps were not
+executed on this macOS host. No Word/LibreOffice pixel/layout validation is claimed.
 
 **Additional checkpoint — paragraph style support (2026-11-17):** a user-supplied document
 request exposed that existing paragraphs could not receive heading styles. Added
@@ -343,21 +366,21 @@ set, not a statistical reliability estimate. See `evals/baselines/2026-11-17.{md
   and never printed. This local config edit is untracked.
 - Gemini returned three HTTP 503s during real runs; no silent model/provider fallback was added.
   The opt-in manual harness can retry the pending node once; see `docs/LIVE_RUNS.md`.
-- Known limitations so far (README later): a field spanning paragraphs is detected by counting
+- Known limitations (documented in README/ARCHITECTURE): a field spanning paragraphs is detected by counting
   `fldChar` begin/end before the paragraph (TOC entries are read-only); edits never span
   paragraphs; hyperlink targets are not editable; ParagraphMap is rebuilt per op (fine for
   case-study sizes, cache if long documents get slow).
 
 ## 7. Next action
-The user committed the earlier steps/heading support before this turn (working tree was clean).
-**Step 8 is ready for human review/commit**; nothing staged or committed by the agent.
-Suggested commit: `feat: add bounded synthetic evaluations and manual workflow`.
+**All nine planned steps are complete.** The working tree was clean before step 9; its docs
+are ready for the human's final review/commit. Nothing was staged, committed or pushed by the
+agent. Suggested commit: `docs: add beginner English and German guides and finalize handoff`.
 
-Next: **step 9**, final README architecture/decisions/limitations/testing explanation and the
-AI-assisted workflow write-up. Link the samples and the qualified baseline; explain format
-preservation precisely, prompt-only ambiguity limitations, private-document disclosure and
-in-process checkpoints. Do not spend more live calls merely to refresh passing examples.
-The manual remote eval workflow is ready but not dispatched. Continue on `main`; human commits.
+Human handover: review/commit/push the docs, provide the courtesy key privately with actual
+seven-day dates, and configure/perform provider-side expiry or revocation. Those credential
+actions are not implemented by these documentation changes. Remote CI/eval workflows have not
+been dispatched by the agent. Opening outputs in Word remains a human visual check.
+No further live calls are necessary to finish this plan. Stay on `main`; human commits.
 
 API references consulted in step 5:
 [LangGraph interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts),

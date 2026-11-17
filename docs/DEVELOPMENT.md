@@ -1,6 +1,20 @@
 # How this was built — AI-assisted workflow with test-and-fix loops
 
-> Optional-challenge write-up. Finalised in step 9; logs below are appended as work happens.
+> Optional challenge: a record of how AI-assisted changes were developed, tested and reviewed.
+> Finalized in step 9. The human owns the requirements, credentials, review and every commit.
+
+## Working method
+
+The implementation was built in small checkpoints on `main`: package preservation first,
+run-aware edits next, then independent integrity checks, LangGraph orchestration and bounded
+live tests. That order made document damage observable before a model could hide it behind a
+plausible answer. The AI proposed and implemented changes; the human selected the scope,
+reviewed outputs and committed checkpoints. Agents never committed or pushed.
+
+Claude Code hooks automated some early feedback. Codex later ran the same Make targets
+manually and recorded local reviews; the Claude `/code-review` command was unavailable in that
+environment. The review log below distinguishes those paths rather than claiming automation
+that did not run.
 
 ## Loop structure
 ```
@@ -21,7 +35,69 @@ live eval fails ─► /eval-to-test: reproduce offline as a deterministic test 
 | Remote gate | `.github/workflows/ci.yml` | GitHub Actions on every push |
 | Agent-neutral rules | `AGENTS.md`, `docs/HANDOFF.md` | any coding agent can continue |
 
-Evidence of loop iterations is appended automatically to `.claude/loop-log.jsonl`.
+Claude hook executions append evidence to `.claude/loop-log.jsonl`. That file is not a complete
+record of Codex turns: manual gate results, regressions and review outcomes are recorded here,
+in the tests and in `docs/HANDOFF.md`.
+
+## Three concrete feedback loops
+
+**A plausible edit damaged formatting.** The live practice-letter request replaced a bold date
+and an italic time in one quote. Plain text was correct, but formatting spread into the
+unchanged connecting text. The integrity checker rejected the output before saving. An offline
+[unit regression](../tests/unit/test_ops.py) reproduced the date/time case before the fix.
+Replacement now separates changed spans around meaningful token anchors and prepares the edit
+in a copied XML context, retaining atomic refusal and earlier-paragraph field context. A new
+[property test](../tests/property/test_ops_properties.py) found a repeated-letter alignment
+counterexample; that minimized example remains explicit in the test.
+
+**The reviewer lacked evidence.** A new bullet inherited the correct style, but the judge saw
+plain-text changes and rejected it as a normal paragraph. A
+[graph regression](../tests/graph/test_graph.py) demonstrated the missing style evidence. The
+judge now receives actual views of live touched blocks, including their paragraph styles.
+This repaired its information input rather than weakening the integrity checker.
+
+**Both models accepted an ambiguous scope.** The six-case live eval initially passed 5/6. The
+editor changed two labelled dates when the user had not selected a field or requested all
+matches, and its judge approved. The independent evaluator failed it. The
+[real synthetic tool trace](../tests/fixtures/ambiguous_date_trace.json) is replayed by a
+[negative eval regression](../tests/evals/test_eval.py): approval must not make it score as a
+success. Editor/judge prompts now distinguish knowing old/new values from knowing the intended
+scope. Only this failed case was rerun, and it asked before editing in two calls. This is a
+prompt-only correction, not a deterministic intent guard or a final-version full-suite 6/6.
+
+## How work was verified
+
+- The full gate is `make check`: lint, formatting, strict source typing and all tests with
+  coverage. The same checks run in normal CI, without model access. There is no additional
+  hidden gate. The walkthrough gives the four equivalent uv commands for users without Make.
+- Scripted models drive the actual graph, including ambiguity interrupts/resume, failed checks,
+  review rejection, limits, dry runs and publication failure. Synthetic fixtures isolate
+  document operations from provider behavior.
+- Unit/property tests compare untouched parts and blocks, per-character formatting outside
+  edited spans and protected structures. Corruption tests show that the checker catches faults;
+  tests do more than reopen files or compare visible text.
+- Live runs were manual and announced with call caps. Step 6–7 sample attempts used 33 Gemini
+  invocations; step 8 used 30, including its targeted follow-up. Anthropic was not used. Counts,
+  available tokens and hashes are preserved in [sample evidence](LIVE_RUNS.md) and the
+  [qualified eval baseline](../evals/baselines/2026-11-17.md).
+- Final documentation was checked against local CLI help, offline inspect/verify output,
+  locked dependency state, a scripted first-edit walkthrough and relative links. No extra live
+  calls were needed to write or verify the guides.
+
+## What remains a human responsibility
+
+Review the resulting document in Word/LibreOffice, approve changes and commit/push the finished
+repository. CI does not compare rendered pages. Model judgments and the small eval set do not
+guarantee semantic correctness.
+
+Public samples/fixtures contain fictitious data. A user-provided document was edited only with
+local tools after external disclosure was blocked; that result is not presented as live Gemini
+evidence, and the document was not added as a fixture.
+
+The optional seven-day courtesy key must be supplied privately and actually expired/revoked
+by its owner; documentation does not configure provider credentials. The
+[handover guide](REVIEW_HANDOFF.md) makes that distinction explicit. Neither a key nor a
+scheduled revocation was created during this documentation step.
 
 ## Test-and-fix log (notable iterations)
 | Step | Caught by | Failure | Fix |
@@ -55,6 +131,7 @@ Evidence of loop iterations is appended automatically to `.claude/loop-log.jsonl
 | Heading-style request | synthetic failing unit/graph tests before extending tools | no existing-paragraph style tool; checker correctly rejected all paragraph-property changes | add exact per-block style permissions, effect checks and alignment support; preserve every other property/run/object. 249 tests, 99.44% coverage. External disclosure of the supplied document was blocked by automatic approval review; local-tools output only, zero live calls |
 | 8 | six-case live eval, independent assertions | model broadened a singular date request to both labelled dates, and its reviewer approved; initial 5/6 | retain real tool trace as a negative scripted eval; strengthen scope/clarification instructions for editor + judge. Prompt-only correction, no deterministic intent guard. Targeted real follow-up: asked before editing, 1/1 in 2 calls; five other cases not rerun |
 | 8 | offline evaluator tests | approving an unchanged/wrong output must not count as success; quota guard must apply before both editor and review calls | case-defined semantic/integrity assertions, actual clarification interrupts before edits, shared callback budget; scripted 503 resume verifies completed edits are not replayed |
+| 9 | documentation walkthrough and review | beginner setup needed platform-specific steps, observable outputs and an honest distinction between courtesy access and real key expiry | English/German guides, API-free preview, matching first-edit commands verified with the fake model, 53 link/anchor checks, private handover guide; no provider calls or credential changes |
 
 ## Review log (/checkpoint)
 | Step | Findings | Fixed | Skipped (reason) |
@@ -65,3 +142,4 @@ Evidence of loop iterations is appended automatically to `.claude/loop-log.jsonl
 | 5 | Focused local review of tracked diff + new files (Codex; the Claude `/code-review` command is unavailable in this environment) | save failure/rollback, hardlink path aliases, unreadable-output retry handling, refusal call budget; regressions first. Step 4's deferred op-effect gap now covered by snapshot checks. Full gate: 226 tests, 99.41% coverage; no live calls | live model-ID/effort compatibility remains the explicitly planned step 6; per-op snapshots retained for correctness at case-study sizes; artifact pair is not crash-atomic (documented) |
 | 6–7 | Focused local review of source, live artifacts and offline regressions (Codex; Claude `/code-review` unavailable) | reviewer now has style evidence; broad replacements preserve unchanged formatted anchors and remain atomic; explicit 503 retry is capped and resumes the same checkpoint; sample provenance/text/change/style checks run offline in CI | no automatic provider fallback; multi-span tree-copy cost retained for integrity; manual Word visual review not claimed. Live evidence: 33 invocations, no Anthropic, three verified outputs. Gate: 243 tests, 99.43% coverage |
 | 8 | Focused local review of evaluator, workflow and measured results (Claude `/code-review` unavailable) | independent case-defined scoring, shared editor/review call cap, opt-in 503 resume, safe manual workflow arguments, strict synthetic source list, saved negative ambiguity trace + prompt clarification policy | no whole-suite rerun after prompt fix; baseline explicitly reports initial 5/6 plus targeted 1/1, not final-version 6/6. 30 real Gemini calls, no Anthropic/personal data. Gate: 269 tests, 99.44% source coverage; CI profile passes |
+| 9 | Focused local documentation/command review (Claude `/code-review` unavailable) | step-by-step English/German walkthroughs, matching demo commands and exact verification output, linked architecture/checker limits, actual automation boundaries, private seven-day key handover with no false automatic-expiry claim | Windows installation not executed on this macOS host; real credential expiry/revocation remains the owner's handover task. No new live calls. Full CI-profile gate: 269 tests, 99.44% source coverage |
