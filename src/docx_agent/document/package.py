@@ -114,6 +114,10 @@ class DocxPackage:
             return serialize_xml(self._trees[name])
         return self._by_name[name].data
 
+    def part_info(self, name: str) -> zipfile.ZipInfo:
+        """Zip metadata (compression type, timestamp, ...) of a part, as loaded."""
+        return copy.copy(self._by_name[name].info)
+
     def original_part(self, name: str) -> bytes:
         """Bytes of the part exactly as loaded."""
         return self._by_name[name].data

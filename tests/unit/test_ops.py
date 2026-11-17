@@ -451,3 +451,19 @@ def test_delete_paragraph_closing_a_multi_paragraph_field_is_refused() -> None:
     for bid in ("p0", "p1"):
         with pytest.raises(EditError, match="field"):
             ops.delete_paragraph(idx, bid)
+
+
+def test_delete_paragraph_reports_removed_hyperlink(doc: Doc) -> None:
+    result = ops.delete_paragraph(doc.index, "p7")
+    assert result.removed == ("hyperlink",)
+
+
+def test_delete_paragraph_with_tracked_paragraph_mark_needs_allow_media() -> None:
+    body = xml_body(
+        '<w:p><w:pPr><w:rPr><w:ins w:id="1" w:author="x"/></w:rPr></w:pPr>'
+        "<w:r><w:t>typed with track changes</w:t></w:r></w:p><w:p/>"
+    )
+    idx = BlockIndex(body)
+    with pytest.raises(EditError, match="tracked change"):
+        ops.delete_paragraph(idx, "p0")
+    assert ops.delete_paragraph(idx, "p0", allow_media=True).removed == ("tracked change",)

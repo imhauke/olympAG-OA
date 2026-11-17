@@ -9,3 +9,6 @@
 {"ts": "2026-11-17T11:05:00", "hook": "post_edit", "file": "tests/unit/test_runs.py", "stage": "unit-tests", "ok": false}
 {"ts": "2026-11-17T11:05:22", "hook": "post_edit", "file": "tests/unit/test_blocks.py", "stage": "lint", "ok": false}
 {"ts": "2026-11-17T11:06:25", "hook": "post_edit", "file": "tests/unit/test_ops.py", "stage": "lint", "ok": false}
+{"ts": "2026-11-17T11:36:29", "hook": "post_edit", "file": "src/docx_agent/document/integrity.py", "stage": "lint", "ok": false}
+{"ts": "2026-11-17T11:38:05", "hook": "post_edit", "file": "tests/unit/test_integrity.py", "stage": "lint", "ok": false}
+{"ts": "2026-11-17T11:38:28", "hook": "post_edit", "file": "tests/unit/test_view.py", "stage": "unit-tests", "ok": false}

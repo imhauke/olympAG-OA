@@ -29,6 +29,7 @@ from docx_agent.document.runs import (
     check_new_text,
     clean_rpr,
     paragraph_text,
+    protected_categories,
     replace_span,
     set_run_text,
 )
@@ -46,16 +47,10 @@ _SDT_CONTENT = qn("w:sdtContent")
 _P_STYLE = qn("w:pStyle")
 _VAL = qn("w:val")
 
-_MATH = "http://schemas.openxmlformats.org/officeDocument/2006/math"
-# Content that is not run text but must not disappear with a deleted paragraph by accident.
-_HIDDEN_PROTECTED = {
-    qn("w:del"): "tracked change",
-    qn("w:moveFrom"): "tracked change",
-    qn("w:fldChar"): "field",
-    qn("w:instrText"): "field",
-    f"{{{_MATH}}}oMath": "equation",
-    f"{{{_MATH}}}oMathPara": "equation",
-}
+# Protected categories (runs.PROTECTED) a paragraph deletion handles without allow_media:
+# range markers are moved to a neighbour; hyperlinks go with their text but are declared.
+_MOVED = {"bookmark", "comment range"}
+_DECLARED_ONLY = {"hyperlink"}
 # Range markers are moved to a neighbouring paragraph instead of being deleted: every marker a
 # span edit leaves in place (except proofing marks, which are just spell-check hints) plus the
 # move-range markers of tracked moves.
@@ -389,8 +384,9 @@ def delete_paragraph(index: BlockIndex, block_id: str, *, allow_media: bool = Fa
             protected="section break",
         )
     pm = ParagraphMap(p)
+    categories = protected_categories(p)
     reasons = {a.protected for a in pm.atoms} | {r.protected for r in pm.runs}
-    reasons |= {_HIDDEN_PROTECTED[el.tag] for el in p.iter(*_HIDDEN_PROTECTED)}
+    reasons |= categories - _MOVED - _DECLARED_ONLY
     contains = sorted(r for r in reasons if r)
     if contains and not allow_media:
         raise EditError(
@@ -414,9 +410,12 @@ def delete_paragraph(index: BlockIndex, block_id: str, *, allow_media: bool = Fa
         nid = index.id_of(neighbour)
         if nid is not None:
             touched.append(nid)
+    removed = set(contains) | (categories & _DECLARED_ONLY)
     before = pm.text
     index.remove(block_id)
-    return EditResult("delete_paragraph", block_id, before, "", tuple(touched), tuple(contains))
+    return EditResult(
+        "delete_paragraph", block_id, before, "", tuple(touched), tuple(sorted(removed))
+    )
 
 
 def _check_still_ends_with_paragraph(p: _E, block_id: str) -> None:

@@ -3,7 +3,7 @@
 > Read this first, then `AGENTS.md` (rules). Written so any agent (Claude, Codex, Cursor, Gemini…)
 > with **zero prior context** can continue. Updated at every commit checkpoint.
 
-**Last updated:** 2026-11-17 · after step 3 (block index + run-aware ops) · **Deadline:** Thu 2026-11-19
+**Last updated:** 2026-11-17 · after step 4 (integrity checker, view, CLI inspect/verify) · **Deadline:** Thu 2026-11-19
 
 ## 1. The task
 Olymp technical case study: a **LangGraph agent (Python)** that edits existing `.docx` files from
@@ -22,8 +22,8 @@ deploy to a subdomain of janguzman.com.
 | 1 | Scaffold: uv, ruff/mypy/pytest, Makefile, CI, hooks, AGENTS/CLAUDE.md | ✅ done |
 | 2 | Package layer (`document/package.py`) + no-op round-trip tests + fixture builders | ✅ done |
 | 3 | Block index + run-aware ops (`blocks.py`, `runs.py`, `ops.py`) + unit & property tests | ✅ done |
-| 4 | Integrity checker (`integrity.py`) + corruption tests + CLI `inspect` / `verify` | ⏭ next |
-| 5 | LangGraph graph, tools, prompts + fake-LLM graph tests + CLI `edit` | ☐ |
+| 4 | Integrity checker (`integrity.py`) + corruption tests + CLI `inspect` / `verify` | ✅ done |
+| 5 | LangGraph graph, tools, prompts + fake-LLM graph tests + CLI `edit` | ⏭ next |
 | 6 | First live run (Gemini free tier), fix provider gotchas | ☐ |
 | 7 | Synthetic samples (`samples/`), committed outputs verified in CI | ☐ |
 | 8 | Small live eval set + `evals.yml` (workflow_dispatch) + eval→regression loop | ☐ |
@@ -115,12 +115,38 @@ CI: `.github/workflows/ci.yml` runs the same gate on every push to `main` (no LL
   + no protected element lost). Stress-checked with 5 000 examples each. Fixture helpers:
   `xml_paragraph()`, `xml_body()`, `build_xml_docx()` in `tests/fixtures/builders.py`.
 
-**Step 4 — integrity (`integrity.py`)** `check(before_pkg, after_pkg, touched_ids, edit_log)`:
-(1) parts other than edited XML byte-identical, same part set; (2) untouched blocks C14N-identical;
-(3) touched paragraphs: `pPr` unchanged + per-char (char, rPr-hash) outside edited spans
-identical; (4) counts of drawings/tables/sections/bookmarks/hyperlinks unchanged unless an op
-removed them; (5) output reopens in python-docx. Tests inject corruptions and assert detection.
-CLI: `docx-agent inspect IN.docx` (ID-tagged view the LLM sees), `docx-agent verify A B`.
+**Step 4 — delivered** — 179 tests, 99 % coverage.
+- `document/integrity.py`: `check(before_bytes, after_bytes, *, touched=None, allow_removed=())
+  -> IntegrityReport(violations, changes[BlockChange(kind, before_id, after_id, before_text,
+  after_text)], changed_parts, ok, to_dict())`. Works on **bytes only** (independent of the
+  editor's bookkeeping) — the validate node serialises the session package and calls it.
+  Checks: (1) same part names/order, every non-main part byte-identical, zip compression type and
+  date unchanged; (2) *skeleton* (document with all `w:p` removed: tables/cells/tcPr, sections,
+  sdt wrappers) C14N-identical; (3) paragraphs aligned by diff on (cell container, C14N), changed
+  regions paired by text similarity (pPr-aware, memoised DP, capped at 40k cells → positional);
+  modified pairs: pPr identical + per-char formatting identical on unchanged stretches ≥ 3 chars
+  (whole paragraph if text identical; skipped if similarity < 0.5 = rewritten); (4) protected
+  content from the single shared table `runs.PROTECTED` (images, objects, fields, refs, bookmarks,
+  comment ranges, hyperlinks, sectPr, tracked changes, equations, sym) fingerprinted and compared
+  as multisets — a category in `allow_removed` may only be lost **from changed (and touched)
+  paragraphs**; (5) new structural hazards only (body/cell not ending in a paragraph, touching
+  tables) and new droppable edge whitespace (space/tab/newline without `xml:space`; NBSP is fine);
+  (6) with `touched`: every modified/deleted original ID must be touched, inserted paragraphs ≤
+  number of `n*` IDs in touched. python-docx reopen is a **test-only** check (dev dependency).
+- `document/view.py`: `render(index, styles, from_id=, to_id=, max_chars=20000)` — one line per
+  block: `[p2] (List Bullet) "text"` (JSON string: `\t`, `\n`), `[t0] TABLE 3 rows x 3 cols` with
+  indented cell paragraphs, objects as `[IMAGE]`, `[read-only: field|section break|...]` flags.
+  Over budget: paragraphs shortened to 80 chars, then tail cut with `(... N more blocks from pX; use
+  from_id=pX.)`. Header line (`view.HEADER`) explains quoting rules — reuse it in the prompt.
+- CLI: `docx-agent inspect IN.docx [--from-id --to-id --max-chars]`; `docx-agent verify BEFORE
+  AFTER [--json] [--allow-removed image ...]` → exit 0 ok, 1 violations, 2 unusable input.
+- `ops.delete_paragraph` now derives refusals/declared removals from `runs.PROTECTED`
+  (bookmarks/comment ranges are moved; hyperlinks are declared in `removed`, no `allow_media`).
+- Tests: `tests/unit/test_integrity.py` (clean sessions pass; 10+ injected corruptions each
+  detected with a specific message; scoping, alignment, hazards), `test_view.py`, `tests/test_cli.py`,
+  and `tests/property/test_session_properties.py`: random op sequences on the rich fixture ⇒
+  `check(touched, allow_removed)` ok **and** python-docx reopens with the expected texts
+  (stress-run 2 000 sessions).
 
 **Step 5 — LangGraph (`src/docx_agent/agent/`)** explicit `StateGraph` (not `create_react_agent`):
 `load → agent ⇄ tools`; `ask_clarification` → `clarify` (`interrupt()`, CLI resumes with
@@ -131,7 +157,12 @@ CLI: `docx-agent inspect IN.docx` (ID-tagged view the LLM sees), `docx-agent ver
 Document lives in a `DocumentSession` passed via LangGraph runtime context; checkpointer
 `InMemorySaver`. Tools (`@tool`, Pydantic args): `view_document`, `find_text`, `replace_text`,
 `insert_text`, `delete_text`, `insert_paragraph`, `delete_paragraph`, `ask_clarification`, `finish`.
-Message history is append-only. Graph tests with a scripted fake LLM: happy path, ambiguity →
+Message history is append-only. **Validate must also check each op's effect against the
+report** (replace/insert/delete_text ⇒ that block `modified` with `EditResult.after` text;
+insert_paragraph ⇒ an `inserted` change with that text; delete_paragraph ⇒ `deleted`), because
+the checker alone can pair a buggy insert with a deleted paragraph (review step 4).
+Pass `touched` = union of `EditResult.touched`, `allow_removed` = union of `.removed`.
+Graph tests with a scripted fake LLM: happy path, ambiguity →
 interrupt → resume, validation fail → retry, review reject, retries exhausted, dry-run.
 
 **Steps 7–9:** `samples/generate.py` (deterministic python-docx generators: session note, treatment
@@ -166,11 +197,10 @@ decisions, limitations, how integrity is tested.
   case-study sizes, cache if long documents get slow).
 
 ## 7. Next action
-Start **step 4** (spec above): `document/integrity.py` `check(before_pkg, after_pkg, touched_ids,
-edit_log)` built on `BlockIndex` (original IDs are stable in the session; new `n*` IDs appear only
-in the edited index) and `runs.char_formats` (per-char formatting outside edited spans). A touched
-cell paragraph makes its table changed only inside that cell. `EditResult.removed` lists structures
-removed on purpose (e.g. `hyperlink`, `image`) for the counts check. Then a `view.py` (ID-tagged
-text view, `[IMAGE]` for U+FFFC, `[TABLE t0 3x3]`) and CLI `inspect` / `verify`. Finish with
-`/checkpoint` (Claude) or `make check` + manual review + update this file (other agents), then
-stop for the human to commit.
+Start **step 5** (spec in §5): `src/docx_agent/agent/` — `DocumentSession` (original bytes,
+`DocxPackage`, `BlockIndex`, `StyleCatalog`, edit log of `EditResult`s, `reset()` = reload from the
+original bytes), thin `@tool` wrappers over `document.ops` returning `EditResult.to_dict()` /
+`EditError.to_dict()` as JSON, `view_document` = `view.render`, explicit `StateGraph`
+(load → agent ⇄ tools → clarify(interrupt) / validate → review → save), scripted fake chat model
+for graph tests, CLI `edit`. LLM provider decision (Gemini default vs Anthropic) is still open —
+read §4 first; never make live calls in tests. Finish with `/checkpoint`, then stop for the human.

@@ -88,6 +88,43 @@ _OBJECT_REASONS = {
     "sym": "symbol",
     "ptab": "positional tab",
 }
+_MATH = "http://schemas.openxmlformats.org/officeDocument/2006/math"
+_MC = "http://schemas.openxmlformats.org/markup-compatibility/2006"
+
+# The single source of truth for protected document content: element -> (category, how the
+# integrity checker fingerprints it). ops.delete_paragraph refuses/declares by these categories
+# and integrity.check verifies them, so the two can never disagree.
+PROTECTED: dict[str, tuple[str, Literal["xml", "attrs", "text"]]] = {
+    qn("w:drawing"): ("image", "xml"),
+    qn("w:pict"): ("image", "xml"),
+    qn("w:object"): ("embedded object", "xml"),
+    f"{{{_MC}}}AlternateContent": ("embedded object", "xml"),
+    qn("w:fldChar"): ("field", "attrs"),
+    qn("w:instrText"): ("field", "text"),
+    qn("w:fldSimple"): ("field", "attrs"),
+    qn("w:footnoteReference"): ("footnote reference", "attrs"),
+    qn("w:endnoteReference"): ("endnote reference", "attrs"),
+    qn("w:commentReference"): ("comment", "attrs"),
+    qn("w:commentRangeStart"): ("comment range", "attrs"),
+    qn("w:commentRangeEnd"): ("comment range", "attrs"),
+    qn("w:bookmarkStart"): ("bookmark", "attrs"),
+    qn("w:bookmarkEnd"): ("bookmark", "attrs"),
+    qn("w:hyperlink"): ("hyperlink", "attrs"),
+    qn("w:sectPr"): ("section break", "xml"),
+    qn("w:ins"): ("tracked change", "attrs"),
+    qn("w:del"): ("tracked change", "xml"),
+    qn("w:moveFrom"): ("tracked change", "xml"),
+    qn("w:moveTo"): ("tracked change", "attrs"),
+    f"{{{_MATH}}}oMath": ("equation", "xml"),
+    qn("w:sym"): ("symbol", "attrs"),
+}
+
+
+def protected_categories(el: _E) -> set[str]:
+    """Categories of protected content inside `el` (including `el` itself)."""
+    return {PROTECTED[x.tag][0] for x in el.iter(*PROTECTED)}
+
+
 _INVALID_XML_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff\ufffc]")
 
 
