@@ -13,6 +13,8 @@ Every operation either applies completely and returns an `EditResult`, or raises
 from __future__ import annotations
 
 import copy
+import difflib
+import re
 from dataclasses import asdict, dataclass
 from typing import Any, Literal
 
@@ -275,8 +277,67 @@ def _span_edit(op: str, index: BlockIndex, span: Match, new: str) -> EditResult:
     attach: Attach = "auto"
     if start == end and span.start < span.end:  # a replace trimmed to a pure insert
         attach = "left" if start > span.start else "right"
-    removed = replace_span(p, start, end, new, attach=attach)
+    changes = _replacement_changes(before[start:end], new, start)
+    removed = (
+        _replace_changes(p, changes, span.start)
+        if len(changes) > 1
+        else replace_span(p, start, end, new, attach=attach)
+    )
     return EditResult(op, bid, before, paragraph_text(p), (bid,), tuple(removed))
+
+
+def _replacement_changes(old: str, new: str, offset: int) -> list[tuple[int, int, str]]:
+    """Keep meaningful unchanged anchors; tiny coincidences belong to their replacement.
+
+    For example, do not treat the zeroes shared by '09:00' and '10:30' as anchors:
+    the time is one replacement inheriting its original run's format.
+    """
+    # Match whole tokens first so repeated letters in different words cannot
+    # displace an unchanged phrase between the edited words.
+    old_tokens = list(re.finditer(r"\w+|[^\w\s]+|\s+", old))
+    new_tokens = list(re.finditer(r"\w+|[^\w\s]+|\s+", new))
+    old_offsets = [match.start() for match in old_tokens] + [len(old)]
+    new_offsets = [match.start() for match in new_tokens] + [len(new)]
+    groups: list[tuple[int, int, int, int]] = []
+    for tag, a, b, c, d in difflib.SequenceMatcher(
+        a=[match.group() for match in old_tokens],
+        b=[match.group() for match in new_tokens],
+        autojunk=False,
+    ).get_opcodes():
+        if tag == "equal":
+            continue
+        lo, hi, new_lo, new_hi = old_offsets[a], old_offsets[b], new_offsets[c], new_offsets[d]
+        if groups and lo - groups[-1][1] < 3:
+            previous = groups.pop()
+            groups.append((previous[0], hi, previous[2], new_hi))
+        else:
+            groups.append((lo, hi, new_lo, new_hi))
+    return [(offset + lo, offset + hi, new[new_lo:new_hi]) for lo, hi, new_lo, new_hi in groups]
+
+
+def _replace_changes(p: _E, changes: list[tuple[int, int, str]], quote_start: int) -> list[str]:
+    """Preserve unchanged runs between disjoint changes, atomically.
+
+    Work in a copied XML context so a later protected-content refusal cannot leave a
+    partial edit. Copying ancestors keeps fields opened in preceding paragraphs protected.
+    Only the successful paragraph's children are transferred back; its stable ID survives.
+    """
+    path: list[int] = []
+    root = p
+    while (parent := root.getparent()) is not None:
+        path.append(parent.index(root))
+        root = parent
+    candidate = copy.deepcopy(root)
+    for position in reversed(path):
+        candidate = candidate[position]
+    removed: set[str] = set()
+    for start, end, new in reversed(changes):
+        attach: Attach = "auto"
+        if start == end:
+            attach = "left" if start > quote_start else "right"
+        removed.update(replace_span(candidate, start, end, new, attach=attach))
+    p[:] = list(candidate)
+    return sorted(removed)
 
 
 def minimal_change(text: str, start: int, end: int, new: str) -> tuple[int, int, str]:

@@ -12,6 +12,7 @@ from lxml import etree
 from docx_agent.document import ops
 from docx_agent.document.blocks import BlockIndex
 from docx_agent.document.errors import EditError
+from docx_agent.document.integrity import check
 from docx_agent.document.ns import qn
 from docx_agent.document.package import DocxPackage
 from docx_agent.document.runs import char_formats, paragraph_text
@@ -20,6 +21,39 @@ from tests.fixtures.builders import build_xml_docx, xml_body
 
 NBSP, SHY, RSQUO, NDASH = chr(0xA0), chr(0xAD), chr(0x2019), chr(0x2013)
 LAQUO, RAQUO = chr(0xAB), chr(0xBB)
+
+
+def test_date_and_time_replacement_preserves_internal_formatting() -> None:
+    original = build_xml_docx(
+        '<w:p><w:r><w:t xml:space="preserve">Your appointment is on </w:t></w:r>'
+        "<w:r><w:rPr><w:b/></w:rPr><w:t>20 March 2026</w:t></w:r>"
+        '<w:r><w:t xml:space="preserve"> at </w:t></w:r>'
+        "<w:r><w:rPr><w:i/></w:rPr><w:t>09:00</w:t></w:r>"
+        "<w:r><w:t>.</w:t></w:r></w:p>"
+    )
+    doc = Doc(original)
+    before = char_formats(doc.index.paragraph("p0"))
+    ops.replace_text(doc.index, "20 March 2026 at 09:00", "27 March 2026 at 10:30")
+    after = char_formats(doc.index.paragraph("p0"))
+    assert doc.text("p0") == "Your appointment is on 27 March 2026 at 10:30."
+    assert [fmt for _, fmt in before] == [fmt for _, fmt in after]
+    assert check(original, doc.pkg.to_bytes()).ok
+
+
+def test_multispan_refusal_is_atomic_and_keeps_preceding_field_context() -> None:
+    body = xml_body(
+        '<w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+        "<w:r><w:instrText>TOC</w:instrText></w:r>"
+        '<w:r><w:fldChar w:fldCharType="separate"/></w:r></w:p>'
+        "<w:p><w:r><w:t>ProtectedA</w:t></w:r>"
+        '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+        '<w:r><w:t xml:space="preserve"> middle OldB</w:t></w:r></w:p>'
+    )
+    index = BlockIndex(body)
+    before = _c14n(body)
+    with pytest.raises(EditError, match="protected"):
+        ops.replace_text(index, "ProtectedA middle OldB", "ProtectedX middle NewB", block_id="p1")
+    assert _c14n(body) == before
 
 
 def _c14n(el: etree._Element) -> bytes:

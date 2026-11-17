@@ -55,3 +55,16 @@ jobs:
           name: coverage
           path: coverage.xml
           if-no-files-found: ignore
+
+      - name: Upload verified sample deliverables
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-docx-samples
+          path: |
+            samples/*/input.docx
+            samples/*/instruction.txt
+            samples/*/output.docx
+            samples/*/report.json
+            samples/*/run.json
+            samples/*/diff.md
+          if-no-files-found: error

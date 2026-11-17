@@ -1,0 +1,1 @@
+Change the session date in the narrative from 12 March 2026 to 19 March 2026. In the goals table, change the sleep target from 8h to 7.5h. Add a bullet immediately after "Practised breathing exercises." reading "Agreed to keep a sleep diary." Preserve all other content and formatting.

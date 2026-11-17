@@ -1,0 +1,80 @@
+{
+  "status": "saved",
+  "instruction": "Move the appointment from 20 March 2026 at 09:00 to 27 March 2026 at 10:30. Remove the sentence \"This draft sentence is obsolete.\" and its following space. Add a paragraph immediately after the paragraph about bringing the completed form: \"Please contact the practice if you need to reschedule.\" Keep the logo, signature, superscript reference, sections and all other content intact.",
+  "summary": "Moved appointment date/time to 27 March 2026 at 10:30, removed the obsolete draft sentence and its space from paragraph p5, and inserted the new paragraph after p5.",
+  "retries": 0,
+  "reason": "The edits correctly move the appointment date and time, remove the specified obsolete sentence, and add the requested paragraph immediately after the paragraph about bringing the completed form, while leaving all other elements intact.",
+  "integrity": {
+    "ok": true,
+    "violations": [],
+    "changes": [
+      {
+        "kind": "modified",
+        "before_id": "p4",
+        "after_id": "p4",
+        "before_text": "Your appointment is on 20 March 2026 at 09:00.",
+        "after_text": "Your appointment is on 27 March 2026 at 10:30."
+      },
+      {
+        "kind": "modified",
+        "before_id": "p5",
+        "after_id": "p5",
+        "before_text": "This draft sentence is obsolete. Please bring the completed form.1",
+        "after_text": "Please bring the completed form.1"
+      },
+      {
+        "kind": "inserted",
+        "before_id": null,
+        "after_id": "p6",
+        "before_text": "",
+        "after_text": "Please contact the practice if you need to reschedule."
+      }
+    ],
+    "changed_parts": [
+      "word/document.xml"
+    ]
+  },
+  "review": {
+    "approved": true,
+    "reason": "The edits correctly move the appointment date and time, remove the specified obsolete sentence, and add the requested paragraph immediately after the paragraph about bringing the completed form, while leaving all other elements intact."
+  },
+  "attempts": [
+    {
+      "stage": "review",
+      "approved": true,
+      "reason": "The edits correctly move the appointment date and time, remove the specified obsolete sentence, and add the requested paragraph immediately after the paragraph about bringing the completed form, while leaving all other elements intact."
+    }
+  ],
+  "operations": [
+    {
+      "op": "replace_text",
+      "block_id": "p4",
+      "before": "Your appointment is on 20 March 2026 at 09:00.",
+      "after": "Your appointment is on 27 March 2026 at 10:30.",
+      "touched": [
+        "p4"
+      ],
+      "removed": []
+    },
+    {
+      "op": "replace_text",
+      "block_id": "p5",
+      "before": "This draft sentence is obsolete. Please bring the completed form.1",
+      "after": "Please bring the completed form.1",
+      "touched": [
+        "p5"
+      ],
+      "removed": []
+    },
+    {
+      "op": "insert_paragraph",
+      "block_id": "n0",
+      "before": "",
+      "after": "Please contact the practice if you need to reschedule.",
+      "touched": [
+        "n0"
+      ],
+      "removed": []
+    }
+  ]
+}

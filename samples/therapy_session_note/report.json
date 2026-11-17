@@ -1,0 +1,80 @@
+{
+  "status": "saved",
+  "instruction": "Change the session date in the narrative from 12 March 2026 to 19 March 2026. In the goals table, change the sleep target from 8h to 7.5h. Add a bullet immediately after \"Practised breathing exercises.\" reading \"Agreed to keep a sleep diary.\" Preserve all other content and formatting.",
+  "summary": "Changed session date to 19 March 2026, updated sleep target to 7.5h in the goals table, and added the list bullet 'Agreed to keep a sleep diary.' after 'Practised breathing exercises.'",
+  "retries": 0,
+  "reason": "The edits correctly change the session date to 19 March 2026, update the sleep target in the table to 7.5h, and insert the requested bullet item immediately after 'Practised breathing exercises.' with the correct list bullet style.",
+  "integrity": {
+    "ok": true,
+    "violations": [],
+    "changes": [
+      {
+        "kind": "modified",
+        "before_id": "p2",
+        "after_id": "p2",
+        "before_text": "The client Max Mustermann attended the weekly session on 12 March 2026.",
+        "after_text": "The client Max Mustermann attended the weekly session on 19 March 2026."
+      },
+      {
+        "kind": "inserted",
+        "before_id": null,
+        "after_id": "p5",
+        "before_text": "",
+        "after_text": "Agreed to keep a sleep diary."
+      },
+      {
+        "kind": "modified",
+        "before_id": "t0.r1.c1.p0",
+        "after_id": "t0.r1.c1.p0",
+        "before_text": "8h",
+        "after_text": "7.5h"
+      }
+    ],
+    "changed_parts": [
+      "word/document.xml"
+    ]
+  },
+  "review": {
+    "approved": true,
+    "reason": "The edits correctly change the session date to 19 March 2026, update the sleep target in the table to 7.5h, and insert the requested bullet item immediately after 'Practised breathing exercises.' with the correct list bullet style."
+  },
+  "attempts": [
+    {
+      "stage": "review",
+      "approved": true,
+      "reason": "The edits correctly change the session date to 19 March 2026, update the sleep target in the table to 7.5h, and insert the requested bullet item immediately after 'Practised breathing exercises.' with the correct list bullet style."
+    }
+  ],
+  "operations": [
+    {
+      "op": "replace_text",
+      "block_id": "p2",
+      "before": "The client Max Mustermann attended the weekly session on 12 March 2026.",
+      "after": "The client Max Mustermann attended the weekly session on 19 March 2026.",
+      "touched": [
+        "p2"
+      ],
+      "removed": []
+    },
+    {
+      "op": "replace_text",
+      "block_id": "t0.r1.c1.p0",
+      "before": "8h",
+      "after": "7.5h",
+      "touched": [
+        "t0.r1.c1.p0"
+      ],
+      "removed": []
+    },
+    {
+      "op": "insert_paragraph",
+      "block_id": "n0",
+      "before": "",
+      "after": "Agreed to keep a sleep diary.",
+      "touched": [
+        "n0"
+      ],
+      "removed": []
+    }
+  ]
+}

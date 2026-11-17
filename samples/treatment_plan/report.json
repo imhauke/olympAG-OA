@@ -1,0 +1,80 @@
+{
+  "status": "saved",
+  "instruction": "Change \"Review after four weeks.\" to \"Review after six weeks.\" In the Breathing row, change the status from Planned to In progress. Delete the entire paragraph \"Internal draft placeholder - remove before sharing.\" Preserve everything else, including the logo, hyperlink and merged table cells.",
+  "summary": "Updated review period to six weeks, changed Breathing status to In progress, and deleted the internal draft placeholder paragraph.",
+  "retries": 0,
+  "reason": "The proposed edits correctly change the review period to six weeks, update the breathing status to in progress, and delete the specified placeholder paragraph while preserving all other content.",
+  "integrity": {
+    "ok": true,
+    "violations": [],
+    "changes": [
+      {
+        "kind": "modified",
+        "before_id": "p4",
+        "after_id": "p4",
+        "before_text": "Review after four weeks.",
+        "after_text": "Review after six weeks."
+      },
+      {
+        "kind": "deleted",
+        "before_id": "p5",
+        "after_id": null,
+        "before_text": "Internal draft placeholder - remove before sharing.",
+        "after_text": ""
+      },
+      {
+        "kind": "modified",
+        "before_id": "t0.r1.c2.p0",
+        "after_id": "t0.r1.c2.p0",
+        "before_text": "Planned",
+        "after_text": "In progress"
+      }
+    ],
+    "changed_parts": [
+      "word/document.xml"
+    ]
+  },
+  "review": {
+    "approved": true,
+    "reason": "The proposed edits correctly change the review period to six weeks, update the breathing status to in progress, and delete the specified placeholder paragraph while preserving all other content."
+  },
+  "attempts": [
+    {
+      "stage": "review",
+      "approved": true,
+      "reason": "The proposed edits correctly change the review period to six weeks, update the breathing status to in progress, and delete the specified placeholder paragraph while preserving all other content."
+    }
+  ],
+  "operations": [
+    {
+      "op": "replace_text",
+      "block_id": "p4",
+      "before": "Review after four weeks.",
+      "after": "Review after six weeks.",
+      "touched": [
+        "p4"
+      ],
+      "removed": []
+    },
+    {
+      "op": "replace_text",
+      "block_id": "t0.r1.c2.p0",
+      "before": "Planned",
+      "after": "In progress",
+      "touched": [
+        "t0.r1.c2.p0"
+      ],
+      "removed": []
+    },
+    {
+      "op": "delete_paragraph",
+      "block_id": "p5",
+      "before": "Internal draft placeholder - remove before sharing.",
+      "after": "",
+      "touched": [
+        "p5"
+      ],
+      "removed": []
+    }
+  ]
+}

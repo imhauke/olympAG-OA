@@ -3,7 +3,7 @@
 > Read this first, then `AGENTS.md` (rules). Written so any agent (Claude, Codex, Cursor, Gemini…)
 > with **zero prior context** can continue. Updated at every commit checkpoint.
 
-**Last updated:** 2026-11-17 · after step 5 (LangGraph agent + CLI edit) · **Deadline:** Thu 2026-11-19
+**Last updated:** 2026-11-17 · after steps 6–7 (live Gemini + verified samples) · **Deadline:** Thu 2026-11-19
 
 ## 1. The task
 Olymp technical case study: a **LangGraph agent (Python)** that edits existing `.docx` files from
@@ -24,9 +24,9 @@ deploy to a subdomain of janguzman.com.
 | 3 | Block index + run-aware ops (`blocks.py`, `runs.py`, `ops.py`) + unit & property tests | ✅ done |
 | 4 | Integrity checker (`integrity.py`) + corruption tests + CLI `inspect` / `verify` | ✅ done |
 | 5 | LangGraph graph, tools, prompts + fake-LLM graph tests + CLI `edit` | ✅ done |
-| 6 | First live run (Gemini free tier), fix provider gotchas | ⏭ next |
-| 7 | Synthetic samples (`samples/`), committed outputs verified in CI | ☐ |
-| 8 | Small live eval set + `evals.yml` (workflow_dispatch) + eval→regression loop | ☐ |
+| 6 | First live run (Gemini), fix provider gotchas | ✅ done |
+| 7 | Synthetic samples (`samples/`), outputs verified in CI | ✅ done |
+| 8 | Small live eval set + `evals.yml` (workflow_dispatch) + eval→regression loop | ⏭ next |
 | 9 | README + `docs/DEVELOPMENT.md` final write-up | ☐ |
 
 ## 3. How to run
@@ -65,8 +65,9 @@ CI: `.github/workflows/ci.yml` runs the same gate on every push to `main` (no LL
   An empty model selects the first nonempty `GEMINI_MODELS` entry for Gemini, or
   `claude-sonnet-5-5` for Anthropic. Keys: `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`.
   `.env.example` now matches this default; `GEMINI_BASE_URL` is unused and removed from the
-  example. No automatic provider/model fallback. The model IDs/effort settings have **not**
-  been tested live; validate those in step 6. Do not assume provider quotas/data terms.
+  example. No automatic provider/model fallback. **Verified live in steps 6–7:**
+  `gemini-3.5-flash-lite`, medium thinking, native tool continuation and strict JSON-schema
+  review. Other IDs/providers are still unverified. Do not assume provider quotas/data terms.
 - **Call budgets:** SDK retries are disabled, editor turns capped across all attempts
   (`DOCX_AGENT_MAX_TURNS`, default 30, range 1–100), validation/review share at most two resets
   (`DOCX_AGENT_MAX_RETRIES`, default 2). Separate structured review calls are at most retries+1.
@@ -204,11 +205,51 @@ CI: `.github/workflows/ci.yml` runs the same gate on every push to `main` (no LL
   configuration, all wrappers, journal effects, unjournaled corruption and save rollback.
   CI blanks both provider keys. No live LLM calls were made in step 5.
 
-**Steps 7–9:** `samples/generate.py` (deterministic python-docx generators: session note, treatment
-plan with merged table + image + hyperlink, practice letter with section break) — all marked
-SYNTHETIC; outputs from real agent runs, verified in CI by `test_samples.py`. Small eval set in
-`evals/cases/*.yaml` run by `evals/run.py`, manual only. README: setup, architecture diagram,
-decisions, limitations, how integrity is tested.
+**Steps 6–7 — delivered** — 243 tests, 99.43% overall coverage at the full gate.
+- **33 real Gemini model invocations** across smoke/sample attempts, including three failed
+  HTTP 503 calls. No Anthropic calls. Three successful output documents, each independently
+  verified and approved by structured review. Exact attempt counts and outcomes:
+  `docs/LIVE_RUNS.md`; final per-call tokens/timestamps/hash provenance: `samples/*/run.json`.
+  No further live calls are needed for these steps.
+- Two live failures became offline regressions before fixing:
+  1. Reviewer incorrectly rejected an inherited bullet because its payload lacked output
+     style evidence. It now receives `edited_blocks`: views of all live touched blocks,
+     including inserted paragraph styles. Prompt explains that plain-text diffs omit styles.
+  2. Broad replacement of a bold date + italic time spread bold into the unchanged middle.
+     `ops._replacement_changes` matches whole tokens, keeps meaningful unchanged anchors,
+     and groups tiny common fragments into the replacement. Multiple spans are applied in
+     reverse order on a copy of the full XML context; only successful paragraph children
+     are transferred back. Refusals remain atomic, and field context from preceding
+     paragraphs survives. New unit + property tests cover this and repeated-letter alignment
+     (found by the new property test). Single-span/no-op behavior stays on the existing path.
+     Multi-span replacements add a document-tree copy; acceptable at case-study sizes.
+- `samples/generate.py`: three independent python-docx builders; fixed core dates and ZIP
+  timestamps for deterministic inputs/instructions. **No model calls and no output rewrites.**
+  Session note: mixed bold/italic/color runs, bullets, goals table, header/footer page field.
+  Treatment plan: numbered list, logo, hyperlink, merged header cells, goals table.
+  Practice letter: logo, bold date/italic time, signature, section break, superscript reference.
+  The superscript is ordinary formatted text, not an actual Word footnote.
+- Each sample folder: `input.docx`, `instruction.txt`, **real** `output.docx`, `report.json`,
+  `diff.md`, `run.json`. Saved runs: treatment 5 calls, letter 5 calls, session 6 calls
+  (one 503 retry included). All three requested changes are asserted for each output.
+- `samples/run.py`: manual harness, defaults to native Gemini/first `GEMINI_MODELS` candidate
+  (explicitly clears any stale Claude model override). Five editor calls + one review per
+  sample, zero SDK/reset retries. `--retry-unavailable` **explicitly** allows one extra call
+  after HTTP 503 only, using `graph.invoke(None, same_config, same_context)` at the failed
+  node. A scripted regression proves completed edits are not replayed. This opt-in harness
+  retry does not change application CLI behavior. Never run it casually or from CI.
+- `tests/test_samples.py`: regenerate input bytes/instructions, verify output integrity
+  independently, compare with saved reports, reopen with python-docx, assert exact texts,
+  changed IDs, insertion/deletion counts, inherited bullet style, hashes and live provenance.
+  `tests/test_sample_runner.py` + scripted sample runs keep the harness tested offline.
+  `make samples-check` runs regeneration comparison + these tests. Full `make check` includes
+  them automatically. CI uploads sample deliverables after passing tests.
+- `samples/README.md` explains the deliverables/runs. Root README links to examples/evidence.
+  Word/LibreOffice visual review was not performed; it remains a human check.
+
+**Steps 8–9:** small eval set in `evals/cases/*.yaml` run by `evals/run.py`, manual only;
+`evals.yml` workflow_dispatch. Final README: architecture diagram, decisions, limitations,
+testing explanation; finish `docs/DEVELOPMENT.md`.
 
 ## 6. Gotchas / environment
 - **iCloud Desktop sync breaks the venv.** The project currently lives in `~/Desktop` (iCloud
@@ -237,24 +278,28 @@ decisions, limitations, how integrity is tested.
   `uv run docx-agent edit --help` works. This is an environment repair, not a tracked change.
 - Clarification checkpoints are **in-process only**. Resume must use the same graph/thread ID
   and the same mutable session; there is no cross-process resume CLI or durable storage yet.
+- Step 6 found the ignored local `.env` still selecting Claude while the default provider was
+  Gemini. The live harness overrides it explicitly; its `DOCX_AGENT_MODEL` line was also cleared
+  locally so normal CLI usage now selects the tested first Gemini candidate. Keys were preserved
+  and never printed. This local config edit is untracked.
+- Gemini returned three HTTP 503s during real runs; no silent model/provider fallback was added.
+  The opt-in manual harness can retry the pending node once; see `docs/LIVE_RUNS.md`.
 - Known limitations so far (README later): a field spanning paragraphs is detected by counting
   `fldChar` begin/end before the paragraph (TOC entries are read-only); edits never span
   paragraphs; hyperlink targets are not editable; ParagraphMap is rebuilt per op (fine for
   case-study sizes, cache if long documents get slow).
 
 ## 7. Next action
-Step 5 is ready for the **human to review and commit**; nothing was staged or committed.
-Suggested commit: `feat: add bounded LangGraph document editing agent and CLI`.
+Step 5 was committed by the human before steps 6–7. **Steps 6–7 are now ready for human review
+and commit**; nothing was staged or committed by this agent. Suggested commit:
+`feat: verify live Gemini editing and add reproducible synthetic samples`.
 
-After that, start **step 6**: one announced, tightly capped Gemini smoke run on a synthetic
-fixture (e.g. rich fixture, change table `8h` → `7.5h`). Expect 2 editor calls + 1 review call;
-use `DOCX_AGENT_MAX_TURNS=3 DOCX_AGENT_MAX_RETRIES=0` to cap at 4 total, and announce the cap
-before running. Check nonsecret provider/model settings first: an older `.env` may still have
-`DOCX_AGENT_MODEL=claude-sonnet-5-5`, which must be cleared or paired with `anthropic`.
-Validate native SDK model IDs, thinking/effort compatibility, tool messages and JSON-schema
-review behavior. Fix any issue with a deterministic failing test first; run `verify` on the
-result and `make check`. Do not casually try fallback models or consume the Anthropic credit.
-Samples/evals remain steps 7/8; no live outputs exist yet.
+Next: **step 8**, a small manual eval harness + cases (reuse sample inputs), with assertions on
+expected content, untouched blocks/formatting, and should-ask-clarification. Add
+`.github/workflows/evals.yml` as `workflow_dispatch` only. Keep CI offline. Announce the exact
+live-run call cap first and preserve the low-credit budget; do not rerun all samples needlessly.
+Turn each newly found failure into a deterministic failing regression before fixing it.
+Then step 9 finalizes architecture/limitations/testing documentation and the workflow write-up.
 
 API references consulted in step 5:
 [LangGraph interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts),

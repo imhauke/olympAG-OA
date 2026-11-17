@@ -1,0 +1,109 @@
+{
+  "run_kind": "live",
+  "started_at": "2026-11-17T11:29:27.653796+00:00",
+  "provider": "google_genai",
+  "model": "gemini-3.5-flash-lite",
+  "effort": "medium",
+  "max_editor_calls": 5,
+  "max_review_calls": 1,
+  "input_sha256": "6a808c9da24fff98d0c0f2c4cdab85c8ea1213efae5c19200f4c59e5b00f4e22",
+  "instruction_sha256": "f6c2e301c97266e1ff7345fb676f204c012c77a040315f2b1a2c6dee889ddbd6",
+  "status": "saved",
+  "output_sha256": "c5262d75bdcbe60b22ee8387b8c577d00d6b1d9b8a1b440f2d80aee9532a7249",
+  "editor_calls": 4,
+  "integrity_ok": true,
+  "api_calls": 5,
+  "responses": [
+    {
+      "tools": [
+        "view_document"
+      ],
+      "usage": {
+        "input_tokens": 1472,
+        "output_tokens": 127,
+        "total_tokens": 1599,
+        "input_token_details": {
+          "cache_read": 0
+        },
+        "output_token_details": {
+          "reasoning": 117
+        }
+      },
+      "model": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP"
+    },
+    {
+      "tools": [
+        "replace_text",
+        "replace_text",
+        "delete_paragraph"
+      ],
+      "usage": {
+        "input_tokens": 1958,
+        "output_tokens": 653,
+        "total_tokens": 2611,
+        "input_token_details": {
+          "cache_read": 0
+        },
+        "output_token_details": {
+          "reasoning": 554
+        }
+      },
+      "model": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP"
+    },
+    {
+      "tools": [
+        "view_document"
+      ],
+      "usage": {
+        "input_tokens": 2784,
+        "output_tokens": 23,
+        "total_tokens": 2807,
+        "input_token_details": {
+          "cache_read": 0
+        },
+        "output_token_details": {
+          "reasoning": 13
+        }
+      },
+      "model": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP"
+    },
+    {
+      "tools": [
+        "finish"
+      ],
+      "usage": {
+        "input_tokens": 3153,
+        "output_tokens": 54,
+        "total_tokens": 3207,
+        "input_token_details": {
+          "cache_read": 0
+        },
+        "output_token_details": {
+          "reasoning": 19
+        }
+      },
+      "model": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP"
+    },
+    {
+      "tools": [],
+      "usage": {
+        "input_tokens": 816,
+        "output_tokens": 249,
+        "total_tokens": 1065,
+        "input_token_details": {
+          "cache_read": 0
+        },
+        "output_token_details": {
+          "reasoning": 201
+        }
+      },
+      "model": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP"
+    }
+  ],
+  "finished_at": "2026-11-17T11:29:57.585044+00:00"
+}

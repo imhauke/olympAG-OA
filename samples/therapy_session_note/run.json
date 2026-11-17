@@ -1,0 +1,125 @@
+{
+  "run_kind": "live",
+  "started_at": "2026-11-17T11:38:39.399212+00:00",
+  "provider": "google_genai",
+  "model": "gemini-3.5-flash-lite",
+  "effort": "medium",
+  "max_editor_calls": 5,
+  "max_review_calls": 1,
+  "max_transport_retries": 1,
+  "transport_retries": 1,
+  "input_sha256": "c9994f0fb307ed52802ce449bafb4b3bffd829f044f9f391084acbe2199ec8e7",
+  "instruction_sha256": "40448d9af39f98cc1a11b306889fa47834446f10ace6726a7f768ec508000837",
+  "transport_errors": [
+    {
+      "type": "AgentError",
+      "message": "Editor model call failed; no output saved."
+    },
+    {
+      "type": "GoogleAPIError",
+      "message": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}"
+    },
+    {
+      "type": "ServerError",
+      "message": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.', 'status': 'UNAVAILABLE'}}"
+    }
+  ],
+  "status": "saved",
+  "output_sha256": "5050579c23b4849bec0e24e4f716dea6d9d1cf0d1cad1bb24338c5b35a28170e",
+  "editor_calls": 4,
+  "integrity_ok": true,
+  "api_calls": 6,
+  "responses": [
+    {
+      "tools": [
+        "view_document"
+      ],
+      "usage": {
+        "input_tokens": 1513,
+        "output_tokens": 204,
+        "total_tokens": 1717,
+        "input_token_details": {
+          "cache_read": 0
+        },
+        "output_token_details": {
+          "reasoning": 194
+        }
+      },
+      "model": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP"
+    },
+    {
+      "tools": [
+        "replace_text",
+        "replace_text",
+        "insert_paragraph"
+      ],
+      "usage": {
+        "input_tokens": 2096,
+        "output_tokens": 351,
+        "total_tokens": 2447,
+        "input_token_details": {
+          "cache_read": 0
+        },
+        "output_token_details": {
+          "reasoning": 217
+        }
+      },
+      "model": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP"
+    },
+    {
+      "tools": [
+        "view_document"
+      ],
+      "usage": {
+        "input_tokens": 2653,
+        "output_tokens": 23,
+        "total_tokens": 2676,
+        "input_token_details": {
+          "cache_read": 0
+        },
+        "output_token_details": {
+          "reasoning": 13
+        }
+      },
+      "model": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP"
+    },
+    {
+      "tools": [
+        "finish"
+      ],
+      "usage": {
+        "input_tokens": 3075,
+        "output_tokens": 129,
+        "total_tokens": 3204,
+        "input_token_details": {
+          "cache_read": 0
+        },
+        "output_token_details": {
+          "reasoning": 67
+        }
+      },
+      "model": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP"
+    },
+    {
+      "tools": [],
+      "usage": {
+        "input_tokens": 1250,
+        "output_tokens": 264,
+        "total_tokens": 1514,
+        "input_token_details": {
+          "cache_read": 0
+        },
+        "output_token_details": {
+          "reasoning": 195
+        }
+      },
+      "model": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP"
+    }
+  ],
+  "finished_at": "2026-11-17T11:38:50.719181+00:00"
+}

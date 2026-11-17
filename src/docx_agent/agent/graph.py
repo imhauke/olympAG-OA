@@ -198,6 +198,11 @@ class _Nodes:
             "original": _view(original),
             "changes": state["integrity"]["changes"],
             "operations": [e.to_dict() for e in session.edits],
+            "edited_blocks": {
+                bid: render(session.index, session.styles, from_id=bid, to_id=bid)
+                for bid in sorted({bid for edit in session.edits for bid in edit.touched})
+                if bid in session.index
+            },
         }
         try:
             raw = self.judge.invoke(

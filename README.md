@@ -37,8 +37,18 @@ Set `DOCX_AGENT_MODEL` or `--model` for an explicit model ID. For Anthropic, set
 An explicit model override must match the selected provider. SDK retries are disabled;
 `DOCX_AGENT_MAX_TURNS` bounds editor calls across all attempts, and `DOCX_AGENT_MAX_RETRIES`
 accepts 0–2. The CLI announces call limits before invoking the models. Model IDs and provider
-compatibility still need the planned Step 6 live smoke test; deterministic tests use fakes.
+compatibility was verified with `gemini-3.5-flash-lite`, medium thinking, native tools and
+JSON-schema review; deterministic tests use fakes. Other model IDs remain unverified.
 
 Tests execute the real LangGraph with a scripted chat model and make no API calls. See
 [HANDOFF](docs/HANDOFF.md) for current status, graph details, and the iCloud `.pth` workaround
 if an editable install reports `ModuleNotFoundError`.
+
+## Verified live examples
+
+The [three synthetic samples](samples/README.md) include input documents, instructions, real
+Gemini outputs, readable diffs, integrity/review reports and call/token provenance. They cover
+mixed formatting, list insertion, text/paragraph removal, table edits, a logo, hyperlink, merged
+cells and a section break. `make samples-check` verifies the committed files without API calls;
+the full CI gate does the same. See [live-run evidence](docs/LIVE_RUNS.md) for the failures found
+and regression-tested fixes. Visual review in Word/LibreOffice remains a manual check.

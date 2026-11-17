@@ -12,6 +12,7 @@ from docx_agent.agent.session import DocumentSession
 from docx_agent.document import ops
 from docx_agent.document.integrity import check
 from docx_agent.document.package import PackageError
+from tests.fixtures.builders import build_xml_docx
 from tests.graph.fake import ScriptedModel, calls
 
 
@@ -261,3 +262,33 @@ def test_provider_refusal_stops_without_spending_more_calls(
 def test_invalid_context_limits(tmp_path: Path, rich_docx: bytes, options: dict[str, int]) -> None:
     with pytest.raises(ValueError, match="retries"):
         AgentContext(session=DocumentSession(rich_docx), output=tmp_path / "out.docx", **options)
+
+
+def test_reviewer_sees_actual_inserted_bullet_style(tmp_path: Path) -> None:
+    original = build_xml_docx(
+        '<w:p><w:pPr><w:pStyle w:val="ListBullet"/></w:pPr>'
+        "<w:r><w:t>Existing bullet.</w:t></w:r></w:p>"
+        "<w:p><w:r><w:t>Last paragraph.</w:t></w:r></w:p>"
+    )
+    model = ScriptedModel(
+        responses=[
+            calls(("insert_paragraph", {"anchor_id": "p0", "text": "New bullet."})),
+            calls(("finish", {})),
+        ]
+    )
+
+    def judge(messages):
+        payload = json.loads(messages[-1].content)
+        assert '[n0] (List Bullet) "New bullet."' in payload["edited_blocks"]["n0"]
+        return ReviewDecision(approved=True, reason="Verified inherited List Bullet style")
+
+    graph = build_graph(model, RunnableLambda(judge))
+    ctx = AgentContext(
+        session=DocumentSession(original), output=tmp_path / "out.docx", max_retries=0
+    )
+    result = graph.invoke(
+        {"instruction": "Add New bullet. after Existing bullet. as a bullet"},
+        {"configurable": {"thread_id": "bullet-style"}},
+        context=ctx,
+    )
+    assert result["status"] == "saved"
