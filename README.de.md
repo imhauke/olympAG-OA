@@ -10,7 +10,7 @@ Web-Oberfläche.
 
 [English](README.md) · [Architektur & Integrität](docs/ARCHITECTURE.md) ·
 [KI-gestützte Entwicklung](docs/DEVELOPMENT.md) · [Gemessene Evaluation](evals/baselines/2026-11-17-final.md)
-· Die Web-Oberfläche enthält außerdem eine Seite **How it was built** mit den Entscheidungen
+· Die Web-Oberfläche enthält außerdem eine Seite **Wie es entstand** mit den Entscheidungen
 hinter dem Projekt.
 
 ## Schnellstart
@@ -138,20 +138,20 @@ uv run docx-agent ui
 ```
 
 Das startet die App auf <http://127.0.0.1:8765> und öffnet sie im Browser (oder `5` im Menü
-wählen).
+wählen). Die Oberfläche gibt es auf Englisch und Deutsch: oben mit **EN · DE** umschalten.
 
 ![Die Eingabeansicht: gewählte .docx, Anweisung und Modellauswahl](docs/images/ui-compose.png)
 
-1. Auf **Choose a .docx file** klicken (oder eine Datei darauf ziehen).
-2. Die Änderung unter **What should change?** beschreiben oder ein Beispiel anklicken.
+1. Auf **Eine .docx-Datei wählen** klicken (oder eine Datei darauf ziehen).
+2. Die Änderung unter **Was soll sich ändern?** beschreiben oder ein Beispiel anklicken.
 3. **Gemini** oder **Claude** wählen. Angeboten werden nur Modelle mit Schlüssel in `.env`.
-4. **Edit document** drücken (oder ⌘/Strg + Enter) und den Live-Fortschritt verfolgen. Stellt der
+4. **Dokument bearbeiten** drücken (oder ⌘/Strg + Enter) und den Live-Fortschritt verfolgen. Stellt der
    Agent eine Frage, direkt dort antworten.
-5. Die geprüften Änderungen lesen, dann **Download edited document** (und bei Bedarf den
+5. Die geprüften Änderungen lesen, dann **Bearbeitetes Dokument herunterladen** (und bei Bedarf den
    JSON-Bericht). Lehnen die Prüfungen oder das Review eine Bearbeitung ab, entsteht keine Datei,
    und der Grund wird angezeigt.
 
-Der Reiter **How it was built** (<http://127.0.0.1:8765/docs>) erklärt die Entscheidungen hinter
+Der Reiter **Wie es entstand** (<http://127.0.0.1:8765/docs>) erklärt die Entscheidungen hinter
 dem Projekt. Den Server mit Strg+C beenden.
 
 - Nur lokal: Der Server lauscht auf `127.0.0.1`, lehnt fremde `Host`-Header ab und verlangt bei
@@ -159,9 +159,9 @@ dem Projekt. Den Server mit Strg+C beenden.
   verbrauchen können.
 - Hochgeladene Dokumente werden im Speicher bearbeitet und nie auf die Festplatte geschrieben.
   Ergebnisse der letzten Bearbeitungen bleiben verfügbar, bis der Server stoppt.
-- **Recent documents** speichert nur Dateiname, Anweisung, Modell, Ergebnis und Zeit (nie die
+- **Letzte Dokumente** speichert nur Dateiname, Anweisung, Modell, Ergebnis und Zeit (nie die
   Dokumente) in `~/.docx-agent/history.json`. Verschieben mit `DOCX_AGENT_HISTORY`, leeren mit
-  **Clear**.
+  **Leeren**.
 - Optionen: `--port 8780` für einen anderen Port, `--no-open`, um keinen Browser-Tab zu öffnen.
 
 Bearbeitungen senden Dokumenttext und Anweisung an den gewählten Anbieter. Die synthetischen
@@ -183,7 +183,7 @@ Original mit einer bearbeiteten Kopie und endet mit `OK: integrity checks passed
 Herkunftsnachweis; die Word-Dateien öffnen, um das Layout zu prüfen.
 
 `make check` ist die einzige Qualitätsschranke, identisch in CI: Ruff-Lint und -Format, striktes
-mypy und die vollständige pytest-Suite mit Coverage. Letzter Lauf: **317 Tests, 98,14 % Coverage**
+mypy und die vollständige pytest-Suite mit Coverage. Letzter Lauf: **319 Tests, 98,14 % Coverage**
 (Minimum 85 %). Ohne Make:
 
 ```sh
@@ -247,6 +247,11 @@ Test-Fixtures und öffnet Testausgaben erneut; es speichert nie Agent-Ausgaben. 
   Bilder einfügen; Hyperlink-Ziele ändern; Textbereiche über Absätze hinweg; Inhaltsverzeichnisse
   neu aufbauen. Geschützte Objekte, Felder und Überarbeitungen werden abgelehnt, nie still
   entfernt.
+- Sprachen: **Englisch und Deutsch** sind für Anweisungen und Dokumente unterstützt und getestet
+  (live: eine deutsche Anweisung an einer auf macOS erstellten deutschen `.docx`, mit beiden
+  Modellen; offline: Umlaute, ß, „deutsche Anführungszeichen“ und Halbgeviertstriche). Die Engine
+  ist Unicode-fest, andere Sprachen mit lateinischer Schrift funktionieren daher wahrscheinlich,
+  sind aber ungetestet; Dokumente mit Rechts-nach-links-Schrift oder CJK werden nicht unterstützt.
 - Eigenständiges `verify` lehnt beabsichtigte Überschriftenstil-Änderungen ab; die
   Bearbeitungssitzung prüft sie mit exakten Berechtigungen pro Block.
 - Rückfragen und Modell-Review garantieren nicht die Absicht. Die Absatzzuordnung im Prüfer ist

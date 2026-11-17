@@ -1,11 +1,12 @@
 // docx-agent local UI. Vanilla JS, no build step. All user, document and model text is set with
 // textContent (never innerHTML), so file names or model output cannot inject markup.
 
+import { lang, onLangChange, t, tServer } from "/static/i18n.js";
+
 const $ = (id) => document.getElementById(id);
 const HEADER = { "X-Docx-Agent": "1" };
 const POLL_MS = 650;
 const VIEWS = ["compose", "working", "question", "result", "failed"];
-const TITLES = { compose: "New edit", working: "Editing", question: "Question", result: "Result", failed: "Not saved" };
 
 const state = {
   config: null,
@@ -15,6 +16,7 @@ const state = {
   pollTimer: null,
   clockTimer: null,
   pollFailures: 0,
+  view: "compose",
 };
 
 // ------------------------------------------------------------------ helpers
@@ -31,7 +33,8 @@ async function api(path, options = {}) {
     let detail = "";
     try { detail = (await response.json()).detail; } catch { /* not JSON */ }
     if (Array.isArray(detail)) detail = detail.map((d) => d.msg).join(" ");
-    const error = new Error(typeof detail === "string" && detail ? detail : `Request failed (${response.status}).`);
+    const message = typeof detail === "string" && detail ? tServer(detail) : t("request.failed", { status: response.status });
+    const error = new Error(message);
     error.status = response.status;
     throw error;
   }
@@ -55,8 +58,6 @@ function icon(name) {
   return svg;
 }
 
-function plural(n, word) { return `${n} ${word}${n === 1 ? "" : "s"}`; }
-
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -78,7 +79,8 @@ function providerLabel(id) {
 
 function show(view, focusId) {
   for (const name of VIEWS) $(`view-${name}`).hidden = name !== view;
-  $("window-title").textContent = TITLES[view];
+  state.view = view;
+  $("window-title").textContent = t(`title.${view}`);
   if (focusId) requestAnimationFrame(() => $(focusId)?.focus({ preventScroll: true }));
 }
 
@@ -90,9 +92,9 @@ function renderProviders() {
   const providers = state.config.providers;
   if (!providers.length) {
     box.classList.add("single");
-    box.textContent = "No model";
+    box.textContent = t("provider.none");
     $("model-id").textContent = "";
-    showError("submit-error", "No API key is configured. Add GEMINI_API_KEY or ANTHROPIC_API_KEY to .env, then restart docx-agent ui.");
+    showError("submit-error", t("provider.noKey"));
     updateSubmit();
     return;
   }
@@ -153,10 +155,10 @@ function setFile(file) {
   if (!file) {
     state.file = null;
   } else if (!/\.docx$/i.test(file.name)) {
-    showError("file-error", "Choose a Word document with the .docx extension.");
+    showError("file-error", t("file.notDocx"));
     return;
   } else if (file.size > state.config.maxUploadMb * 1024 * 1024) {
-    showError("file-error", `This file is ${formatSize(file.size)}; the limit is ${state.config.maxUploadMb} MB.`);
+    showError("file-error", t("file.tooLarge", { size: formatSize(file.size), mb: state.config.maxUploadMb }));
     return;
   } else {
     state.file = file;
@@ -258,7 +260,7 @@ async function poll() {
   } catch (error) {
     if (error.status === 404 || ++state.pollFailures > 8) {
       stopTimers();
-      showFailure({ status: "error", message: error.status === 404 ? error.message : "Lost contact with the local server. Is docx-agent ui still running?" });
+      showFailure({ status: "error", message: error.status === 404 ? error.message : t("server.lost") });
       return;
     }
     schedulePoll();
@@ -293,8 +295,8 @@ function renderWorking(job) {
     item.classList.add(status);
     const mark = el("span", "step-mark");
     if (status === "is-done") mark.append(icon("check"));
-    item.append(mark, el("span", "step-label", label));
-    if (status === "is-current" && job.detail) item.append(el("span", "step-detail", job.detail));
+    item.append(mark, el("span", "step-label", tServer(label)));
+    if (status === "is-current" && job.detail) item.append(el("span", "step-detail", tServer(job.detail)));
     list.append(item);
   });
   if (firstPaint) {
@@ -303,7 +305,7 @@ function renderWorking(job) {
     clearInterval(state.clockTimer);
     const tick = () => {
       const seconds = Math.max(0, Math.round((Date.now() - state.startedAt) / 1000));
-      const hint = seconds < 25 ? "Usually 5–20 seconds." : "Busy models or long documents take a little longer.";
+      const hint = t(seconds < 25 ? "elapsed.fast" : "elapsed.slow");
       $("elapsed").textContent = `${seconds} s · ${hint} ${providerLabel(job.provider)} · ${job.model}`;
     };
     tick();
@@ -321,7 +323,7 @@ function renderQuestion(job) {
 async function sendAnswer(event) {
   event.preventDefault();
   const text = $("answer").value.trim();
-  if (!text) { showError("answer-error", "Type an answer first."); return; }
+  if (!text) { showError("answer-error", t("answer.empty")); return; }
   const button = $("answer-submit");
   button.classList.add("is-busy");
   try {
@@ -365,8 +367,8 @@ function trimEqual(text, isFirst, isLast) {
 function renderChange(change) {
   const item = el("li", "change");
   const head = el("div", "change-head");
-  const kinds = { modified: "Changed", inserted: "Added", deleted: "Removed" };
-  head.append(el("span", "change-where", change.location), el("span", "change-kind", kinds[change.kind] || change.kind));
+  const kind = ["modified", "inserted", "deleted"].includes(change.kind) ? t(`change.${change.kind}`) : change.kind;
+  head.append(el("span", "change-where", tServer(change.location)), el("span", "change-kind", kind));
   const text = el("p", "change-text");
   const segments = change.segments;
   segments.forEach((segment, index) => {
@@ -375,11 +377,11 @@ function renderChange(change) {
     } else {
       const tag = segment.kind === "insert" ? "ins" : "del";
       const mark = el(tag, "", segment.text);
-      mark.setAttribute("aria-label", `${segment.kind === "insert" ? "added" : "removed"}: ${segment.text}`);
+      mark.setAttribute("aria-label", `${t(segment.kind === "insert" ? "change.added" : "change.removed")}: ${segment.text}`);
       text.append(mark);
     }
   });
-  if (!segments.length) text.append(el("span", "gap", "(empty paragraph)"));
+  if (!segments.length) text.append(el("span", "gap", t("change.empty")));
   item.append(head, text);
   return item;
 }
@@ -387,23 +389,23 @@ function renderChange(change) {
 function renderResult(job) {
   const result = job.result;
   const changes = result.changes || [];
-  $("result-title").textContent = changes.length ? `${plural(changes.length, "change")} made` : "No visible changes";
+  $("result-title").textContent = changes.length ? t("result.count", { n: changes.length }) : t("result.none");
   $("result-summary").textContent = result.summary || "";
 
   const meta = $("result-meta");
   meta.replaceChildren();
-  meta.append(metaRow("Document", `${job.filename} → ${editedName(job.filename)}`));
-  meta.append(metaRow("Model", `${providerLabel(job.provider)} · ${job.model}`));
-  const verified = el("span", "verified", "Verified");
-  meta.append(metaRow("Integrity", [verified, document.createTextNode(" · nothing outside these changes was altered")]));
-  const ops = plural(result.edits, "operation") + (result.retries ? ` · ${plural(result.retries, "retry")}` : "");
-  meta.append(metaRow("Edits", ops));
-  if (result.removed?.length) meta.append(metaRow("Removed", `${result.removed.join(", ")} (as requested)`));
-  meta.append(metaRow("Time", `${job.seconds} s`));
-  const report = el("a", "action-link", "Download JSON ");
+  meta.append(metaRow(t("meta.document"), `${job.filename} → ${editedName(job.filename)}`));
+  meta.append(metaRow(t("meta.model"), `${providerLabel(job.provider)} · ${job.model}`));
+  const verified = el("span", "verified", t("meta.verified"));
+  meta.append(metaRow(t("meta.integrity"), [verified, document.createTextNode(t("meta.verifiedNote"))]));
+  const ops = t("meta.operations", { n: result.edits }) + (result.retries ? ` · ${t("meta.retries", { n: result.retries })}` : "");
+  meta.append(metaRow(t("meta.edits"), ops));
+  if (result.removed?.length) meta.append(metaRow(t("meta.removed"), t("meta.asRequested", { items: result.removed.join(", ") })));
+  meta.append(metaRow(t("meta.time"), `${job.seconds} s`));
+  const report = el("a", "action-link", t("meta.json"));
   report.href = `/api/jobs/${job.id}/report`;
   report.append(icon("link"));
-  meta.append(metaRow("Report", [report]));
+  meta.append(metaRow(t("meta.report"), [report]));
 
   const list = $("changes");
   list.replaceChildren(...changes.map(renderChange));
@@ -414,9 +416,9 @@ function renderResult(job) {
 
 function showFailure(job) {
   const isError = job.status === "error";
-  $("failed-kind").textContent = isError ? "Model service error" : "Nothing was saved";
-  $("failed-title").textContent = isError ? "The edit could not run" : "The edit was not applied";
-  $("failed-message").textContent = job.message || "";
+  $("failed-kind").textContent = t(isError ? "failed.serviceKind" : "failed.kind");
+  $("failed-title").textContent = t(isError ? "failed.serviceTitle" : "failed.title");
+  $("failed-message").textContent = tServer(job.message || "");
   const violations = job.result?.violations || [];
   const list = $("violations");
   list.replaceChildren(...violations.map((v) => el("li", "", v)));
@@ -440,15 +442,14 @@ function restart(keepInputs) {
 
 // ------------------------------------------------------------------ history
 
-const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-
 function ago(iso) {
+  const relative = new Intl.RelativeTimeFormat(lang(), { numeric: "auto" });
   const seconds = (new Date(iso).getTime() - Date.now()) / 1000;
   const units = [["year", 31536000], ["month", 2592000], ["week", 604800], ["day", 86400], ["hour", 3600], ["minute", 60]];
   for (const [unit, size] of units) {
     if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit);
   }
-  return "just now";
+  return t("time.now");
 }
 
 async function loadHistory() {
@@ -460,24 +461,22 @@ async function loadHistory() {
     const item = el("li", "history-item");
     const status = el("span", "history-status");
     if (entry.status === "done") {
-      status.textContent = `Saved · ${plural(entry.changes, "change")}`;
+      status.textContent = t("history.saved", { n: entry.changes });
       status.classList.add("is-saved");
     } else {
-      status.textContent = entry.status === "failed" ? "Not saved" : "Error";
+      status.textContent = t(entry.status === "failed" ? "history.notSaved" : "history.error");
     }
     const side = el("span", "history-side");
     const time = el("time", "history-time", ago(entry.at));
     time.dateTime = entry.at;
-    time.title = new Date(entry.at).toLocaleString();
+    time.title = new Date(entry.at).toLocaleString(lang());
     side.append(status, time);
     item.append(el("span", "history-name", entry.filename), side, el("span", "history-instruction", entry.instruction));
     item.title = `${entry.filename} · ${providerLabel(entry.provider)} ${entry.model}`;
     list.append(item);
   }
   $("history-clear").hidden = !entries.length;
-  $("history-empty").textContent = entries.length
-    ? "Only file names and instructions are kept here, never the documents."
-    : "Documents you edit appear here. Only the file name and your instruction are kept, never the documents.";
+  $("history-empty").textContent = t(entries.length ? "history.kept" : "history.empty");
 }
 
 async function clearHistory() {
@@ -505,10 +504,10 @@ async function boot() {
   try {
     state.config = await api("/api/config");
   } catch (error) {
-    showError("submit-error", `Could not reach the local server: ${error.message}`);
+    showError("submit-error", t("server.unreachable", { message: error.message }));
     return;
   }
-  $("max-mb").textContent = state.config.maxUploadMb;
+  $("drop-hint").textContent = t("drop.hint", { mb: state.config.maxUploadMb });
   $("version").textContent = `docx-agent ${state.config.version}`;
   renderProviders();
   updateSubmit();
@@ -516,5 +515,20 @@ async function boot() {
   resume();
   document.fonts?.ready.then(moveIndicator);
 }
+
+// Switching language re-renders whatever is on screen; inputs, file and job are kept.
+onLangChange(() => {
+  $("window-title").textContent = t(`title.${state.view}`);
+  if (state.config) {
+    $("drop-hint").textContent = t("drop.hint", { mb: state.config.maxUploadMb });
+    if (!state.config.providers.length) renderProviders();
+    loadHistory();
+  }
+  const job = state.job;
+  if (!job) return;
+  if (state.view === "working") renderWorking(job);
+  else if (state.view === "result" && job.status === "done") renderResult(job);
+  else if (state.view === "failed") showFailure(job);
+});
 
 boot();

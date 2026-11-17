@@ -24,10 +24,16 @@
   </svg>
 
   <main class="page">
-    <nav class="topnav" aria-label="Sections">
-      <a href="/" aria-current="page">Editor</a>
-      <a href="/docs">How it was built</a>
-    </nav>
+    <div class="topbar">
+      <nav class="topnav" aria-label="Sections" data-i18n-aria="nav.label">
+        <a href="/" aria-current="page" data-i18n="nav.editor">Editor</a>
+        <a href="/docs" data-i18n="nav.docs">How it was built</a>
+      </nav>
+      <div class="langswitch" role="group" aria-label="Language" data-i18n-aria="lang.label">
+        <button type="button" data-set-lang="en" lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-set-lang="de" lang="de" aria-pressed="false">DE</button>
+      </div>
+    </div>
 
     <header class="masthead">
       <div class="tile" aria-hidden="true">
@@ -35,7 +41,7 @@
         <span class="tile-caret"></span>
       </div>
       <h1>docx-agent</h1>
-      <p class="lede">Describe a change to a Word document. Everything you didn’t ask to change stays exactly as it was.</p>
+      <p class="lede" data-i18n="lede">Describe a change to a Word document. Everything you didn’t ask to change stays exactly as it was.</p>
     </header>
 
     <section class="window" aria-labelledby="window-title">
@@ -47,43 +53,43 @@
       <!-- Compose -->
       <form class="view" id="view-compose" novalidate>
         <div class="field-group">
-          <span class="label" id="file-label">Document</span>
+          <span class="label" id="file-label" data-i18n="label.document">Document</span>
           <label class="drop" id="drop" aria-labelledby="file-label">
             <input id="file" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="visually-hidden">
             <span class="drop-empty">
               <span class="drop-icon" aria-hidden="true"><svg class="glyph"><use href="#i-upload"/></svg></span>
-              <span class="drop-text"><strong>Choose a .docx file</strong><span>or drop it here · up to <span id="max-mb">25</span> MB</span></span>
+              <span class="drop-text"><strong data-i18n="drop.choose">Choose a .docx file</strong><span id="drop-hint">or drop it here · up to 25 MB</span></span>
             </span>
             <span class="drop-file" hidden>
               <span class="file-tile" aria-hidden="true"><svg class="glyph"><use href="#i-doc"/></svg></span>
               <span class="file-meta"><strong id="file-name"></strong><span id="file-size"></span></span>
-              <span class="action-link small" aria-hidden="true">Change</span>
+              <span class="action-link small" aria-hidden="true" data-i18n="drop.change">Change</span>
             </span>
           </label>
           <p class="field-error" id="file-error" role="alert" hidden></p>
         </div>
 
         <div class="field-group">
-          <label class="label" for="instruction">What should change?</label>
+          <label class="label" for="instruction" data-i18n="label.instruction">What should change?</label>
           <div class="field">
-            <textarea id="instruction" rows="3" maxlength="4000" placeholder="e.g. Change the session date to 19 March 2026 and remove the bullet about breathing exercises."></textarea>
+            <textarea id="instruction" rows="3" maxlength="4000" data-i18n-placeholder="instruction.placeholder" placeholder="e.g. Change the session date to 19 March 2026 and remove the bullet about breathing exercises."></textarea>
           </div>
-          <div class="examples" aria-label="Example instructions">
-            <button type="button" class="example">Change the date to 19 March 2026</button>
-            <button type="button" class="example">Remove the second bullet point</button>
-            <button type="button" class="example">Replace “Max Mustermann” with “Erika Musterfrau” everywhere</button>
+          <div class="examples" aria-label="Example instructions" data-i18n-aria="examples.label">
+            <button type="button" class="example" data-i18n="example.1">Change the date to 19 March 2026</button>
+            <button type="button" class="example" data-i18n="example.2">Remove the second bullet point</button>
+            <button type="button" class="example" data-i18n="example.3">Replace “Max Mustermann” with “Erika Musterfrau” everywhere</button>
           </div>
         </div>
 
         <div class="compose-foot">
           <div class="model" id="model-picker">
-            <span class="label" id="model-label">Model</span>
+            <span class="label" id="model-label" data-i18n="label.model">Model</span>
             <div class="segmented" role="radiogroup" aria-labelledby="model-label" id="providers"></div>
             <span class="caption" id="model-id"></span>
           </div>
           <div class="submit">
             <span class="caption kbd-hint" aria-hidden="true">⌘ Enter</span>
-            <button class="action-primary" id="submit" type="submit" disabled>Edit document <svg class="glyph"><use href="#i-chevron"/></svg></button>
+            <button class="action-primary" id="submit" type="submit" disabled><span data-i18n="submit">Edit document</span> <svg class="glyph"><use href="#i-chevron"/></svg></button>
           </div>
         </div>
         <p class="field-error" id="submit-error" role="alert" hidden></p>
@@ -105,31 +111,31 @@
       <!-- Question -->
       <form class="view" id="view-question" hidden novalidate aria-labelledby="question-title">
         <div class="ask">
-          <h2 class="ask-title" id="question-title" tabindex="-1">One question before editing</h2>
+          <h2 class="ask-title" id="question-title" tabindex="-1" data-i18n="question.title">One question before editing</h2>
           <p class="ask-text" id="question-text"></p>
         </div>
         <div class="field-group">
-          <label class="label" for="answer">Your answer</label>
+          <label class="label" for="answer" data-i18n="label.answer">Your answer</label>
           <div class="field"><textarea id="answer" rows="2" maxlength="4000"></textarea></div>
         </div>
         <div class="actions">
-          <button class="action-primary" type="submit" id="answer-submit">Send answer <svg class="glyph"><use href="#i-chevron"/></svg></button>
-          <button class="action-text" type="button" data-action="restart">Cancel</button>
+          <button class="action-primary" type="submit" id="answer-submit"><span data-i18n="answer.send">Send answer</span> <svg class="glyph"><use href="#i-chevron"/></svg></button>
+          <button class="action-text" type="button" data-action="restart" data-i18n="cancel">Cancel</button>
         </div>
         <p class="field-error" id="answer-error" role="alert" hidden></p>
       </form>
 
       <!-- Result -->
       <section class="view" id="view-result" hidden aria-labelledby="result-title">
-        <p class="receipt"><span class="live-dot" aria-hidden="true"></span>Saved and verified</p>
+        <p class="receipt"><span class="live-dot" aria-hidden="true"></span><span data-i18n="result.receipt">Saved and verified</span></p>
         <h2 class="result-title" id="result-title" tabindex="-1"></h2>
         <p class="result-summary" id="result-summary"></p>
         <dl class="meta" id="result-meta"></dl>
-        <h3 class="section-label">Changes</h3>
+        <h3 class="section-label" data-i18n="result.changes">Changes</h3>
         <ol class="changes" id="changes"></ol>
         <div class="actions">
-          <a class="action-primary" id="download" href="#" download>Download edited document <svg class="glyph"><use href="#i-download"/></svg></a>
-          <button class="action-text" type="button" data-action="restart"><svg class="glyph"><use href="#i-back"/></svg>Edit another document</button>
+          <a class="action-primary" id="download" href="#" download><span data-i18n="result.download">Download edited document</span> <svg class="glyph"><use href="#i-download"/></svg></a>
+          <button class="action-text" type="button" data-action="restart"><svg class="glyph"><use href="#i-back"/></svg><span data-i18n="result.another">Edit another document</span></button>
         </div>
       </section>
 
@@ -139,25 +145,25 @@
         <h2 class="result-title" id="failed-title" tabindex="-1"></h2>
         <p class="result-summary" id="failed-message"></p>
         <ul class="violations" id="violations" hidden></ul>
-        <p class="caption">Your original file was not modified.</p>
+        <p class="caption" data-i18n="failed.original">Your original file was not modified.</p>
         <div class="actions">
-          <button class="action-primary" type="button" data-action="retry">Try again <svg class="glyph"><use href="#i-chevron"/></svg></button>
-          <button class="action-text" type="button" data-action="restart"><svg class="glyph"><use href="#i-back"/></svg>Start over</button>
+          <button class="action-primary" type="button" data-action="retry"><span data-i18n="failed.retry">Try again</span> <svg class="glyph"><use href="#i-chevron"/></svg></button>
+          <button class="action-text" type="button" data-action="restart"><svg class="glyph"><use href="#i-back"/></svg><span data-i18n="failed.restart">Start over</span></button>
         </div>
       </section>
     </section>
 
     <section class="history" aria-labelledby="history-title">
       <div class="history-head">
-        <h2 id="history-title">Recent documents</h2>
-        <button class="action-text small" type="button" id="history-clear" hidden>Clear</button>
+        <h2 id="history-title" data-i18n="history.title">Recent documents</h2>
+        <button class="action-text small" type="button" id="history-clear" hidden data-i18n="history.clear">Clear</button>
       </div>
       <ol class="history-list" id="history-list"></ol>
       <p class="caption" id="history-empty">Documents you edit appear here. Only the file name and your instruction are kept, never the documents.</p>
     </section>
 
     <footer class="foot caption">
-      <span>Runs locally. Files are edited in memory and never stored.</span>
+      <span data-i18n="foot.local">Runs locally. Files are edited in memory and never stored.</span>
       <span id="version"></span>
     </footer>
   </main>

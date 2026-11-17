@@ -14,7 +14,9 @@ model calls without announcing a call cap first.
   `verify`, `ui` and `version` remain for scripts, CI and evals.
 - **Web UI** (`uv run docx-agent ui`, [`web/`](../src/docx_agent/web/)): upload, instruction,
   live progress, inline clarification, word-level diff, download of document and report,
-  metadata-only history in `~/.docx-agent/history.json`. A **How it was built** page at `/docs`
+  metadata-only history in `~/.docx-agent/history.json`. English and German via the EN · DE switch
+  ([`static/i18n.js`](../src/docx_agent/web/static/i18n.js); server messages are translated client-side,
+  the model's own text is not). A **How it was built** page at `/docs`
   ([`static/docs.html`](../src/docx_agent/web/static/docs.html)) explains scope, planning
   decisions, portability, architecture, integrity, the test-and-fix loop, evidence, timeline and
   limits. Its figures (tests, coverage, eval results) are hand-written: update them when they change.
@@ -31,7 +33,7 @@ model calls without announcing a call cap first.
   verification); Gemini runs are free tier. Reviewers' use of the courtesy key draws on it.
 - **Pending human checks:** run the README quick start from zero (menu and web UI) with both
   models, and give feedback on the UI and on the same-turn finish optimisation.
-- Last gate: `HYPOTHESIS_PROFILE=ci make check`: 317 tests, 98.14% source coverage. The menu and
+- Last gate: `HYPOTHESIS_PROFILE=ci make check`: 319 tests, 98.14% source coverage. The menu and
   docs page were also rendered and checked headlessly (scripted model; desktop and 390 px).
 
 ## Verify and maintain

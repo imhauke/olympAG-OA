@@ -135,7 +135,7 @@ uv run docx-agent ui
 ```
 
 This starts the app on <http://127.0.0.1:8765> and opens it in your browser (or choose `5` in
-the menu).
+the menu). The interface is available in English and German: switch with **EN · DE** at the top.
 
 ![The compose screen: a chosen .docx, the instruction and the model picker](docs/images/ui-compose.png)
 
@@ -178,7 +178,7 @@ the input, instruction, real Gemini output, diff and provenance; open the Word f
 their layout.
 
 `make check` is the single quality gate, run identically in CI: Ruff lint and format, strict
-mypy, and the full pytest suite with coverage. Last run: **317 tests, 98.14% coverage** (minimum
+mypy, and the full pytest suite with coverage. Last run: **319 tests, 98.14% coverage** (minimum
 85%). Without Make:
 
 ```sh
@@ -238,6 +238,10 @@ outputs; it never saves agent output. Details: [checks, decisions and implementa
   headers, footers, footnotes, comments or text boxes; inserting tables or images; changing
   hyperlink targets; text spans across paragraphs; rebuilding a table of contents. Protected
   objects, fields and revisions are refused, never silently dropped.
+- Languages: **English and German** are supported and tested, for instructions and documents
+  (live: a German instruction on a German macOS-written `.docx`, on both models; offline: umlauts,
+  ß, „German quotes“ and en dashes). The engine itself is Unicode-safe, so other Latin-script
+  languages will likely work but are untested; right-to-left and CJK documents are not supported.
 - Standalone `verify` rejects intended heading-style changes; the edit session validates them
   with exact per-block permissions.
 - Clarification and model review do not guarantee intent. Paragraph alignment in the checker is

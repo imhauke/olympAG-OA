@@ -269,6 +269,12 @@ def test_editor_and_docs_pages_link_to_each_other(tmp_path: Path) -> None:
     assert "How it was built" in docs.text
     assert 'href="/"' in docs.text
     assert http.get("/static/docs.html").status_code == 200
+    assert 'data-lang="de"' in docs.text  # German version of the docs page
+    assert "Wie es entstand" in docs.text
+    i18n = http.get("/static/i18n.js")
+    assert i18n.status_code == 200
+    assert "Dokument bearbeiten" in i18n.text  # editor strings in both languages
+    assert 'data-set-lang="de"' in editor.text
     assert http.get("/openapi.json").status_code == 200  # docs route did not replace the API
 
 

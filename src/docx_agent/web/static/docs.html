@@ -9,17 +9,26 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7.2' fill='%23121316'/%3E%3Cpath d='M10 7.5h8l4.5 4.5v12.5H10z' fill='none' stroke='%23fff' stroke-width='1.75' stroke-linejoin='round'/%3E%3Cpath d='M13.5 16.5v5' stroke='%238db4ff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
   <link rel="preload" href="/static/fonts/MonaSans-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/app.css">
+  <script type="module" src="/static/i18n.js"></script>
 </head>
-<body>
+<body data-title-key="docs.title">
   <svg width="0" height="0" class="sprite" aria-hidden="true">
     <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6.5 3.5h7L18 8v12.5H6.5z"/><path d="M13.5 3.5V8H18"/></symbol>
   </svg>
 
   <main class="page page-docs">
-    <nav class="topnav" aria-label="Sections">
-      <a href="/">Editor</a>
-      <a href="/docs" aria-current="page">How it was built</a>
-    </nav>
+    <div class="topbar">
+      <nav class="topnav" aria-label="Sections" data-i18n-aria="nav.label">
+        <a href="/" data-i18n="nav.editor">Editor</a>
+        <a href="/docs" aria-current="page" data-i18n="nav.docs">How it was built</a>
+      </nav>
+      <div class="langswitch" role="group" aria-label="Language" data-i18n-aria="lang.label">
+        <button type="button" data-set-lang="en" lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-set-lang="de" lang="de" aria-pressed="false">DE</button>
+      </div>
+    </div>
+
+    <div data-lang="en" lang="en">
 
     <header class="masthead">
       <div class="tile" aria-hidden="true">
@@ -34,7 +43,7 @@
       <li class="fact"><b>1 day</b><span>From the first commit (09:59) to the web UI (23:05)</span></li>
       <li class="fact"><b>$1.93</b><span>Left of the $2 Claude budget: only $0.07 spent</span></li>
       <li class="fact"><b>6/6</b><span>Live eval cases passed; no saved output ever broke integrity</span></li>
-      <li class="fact"><b>317</b><span>Offline tests, 98% coverage, zero API calls in CI</span></li>
+      <li class="fact"><b>319</b><span>Offline tests, 98% coverage, zero API calls in CI</span></li>
     </ul>
 
     <nav class="doc-index" aria-label="On this page">
@@ -310,7 +319,7 @@
       <div class="cards">
         <div class="card">
           <h4>Out of scope today</h4>
-          <p>Headers, footers, footnotes, comments and text boxes are read-only. No inserting tables or images, no changing hyperlink targets, no text spans across paragraphs. Unsupported requests get a question and an alternative, never a silent approximation.</p>
+          <p>Headers, footers, footnotes, comments and text boxes are read-only. No inserting tables or images, no changing hyperlink targets, no text spans across paragraphs. Unsupported requests get a question and an alternative, never a silent approximation. Languages: English and German are supported and tested; other Latin-script languages are untested, right-to-left and CJK are not supported.</p>
         </div>
         <div class="card">
           <h4>Next</h4>
@@ -323,6 +332,312 @@
       <a class="action-link small" href="/">Back to the editor</a>
       <span>All sample content is synthetic.</span>
     </footer>
+    </div>
+
+    <div data-lang="de" lang="de" hidden>
+    <header class="masthead">
+      <div class="tile" aria-hidden="true">
+        <svg class="glyph"><use href="#i-doc"/></svg>
+        <span class="tile-caret"></span>
+      </div>
+      <h1>Wie es entstand</h1>
+      <p class="lede">Die Entscheidungen hinter docx-agent: Umfang festgelegt, bevor Code entstand, Integrität durch Tests belegt statt versprochen, und ein Ablauf, der mittendrin Agent oder Anbieter wechseln konnte.</p>
+    </header>
+
+    <ul class="facts" aria-label="Kennzahlen">
+      <li class="fact"><b>1 Tag</b><span>Vom ersten Commit (09:59) bis zur Web-Oberfläche (23:05)</span></li>
+      <li class="fact"><b>$1,93</b><span>Vom $2-Budget für Claude übrig: nur $0,07 ausgegeben</span></li>
+      <li class="fact"><b>6/6</b><span>Live-Evaluationsfälle bestanden; keine gespeicherte Ausgabe verletzte je die Integrität</span></li>
+      <li class="fact"><b>319</b><span>Offline-Tests, 98 % Coverage, keine API-Aufrufe in CI</span></li>
+    </ul>
+
+    <nav class="doc-index" aria-label="Auf dieser Seite">
+      <a href="#de-scope">Umfang</a>
+      <a href="#de-planning">Planung</a>
+      <a href="#de-portability">Portabilität</a>
+      <a href="#de-architecture">Architektur</a>
+      <a href="#de-integrity">Integrität</a>
+      <a href="#de-loop">Test-und-Fix-Schleife</a>
+      <a href="#de-evidence">Nachweise</a>
+      <a href="#de-timeline">Zeitleiste</a>
+      <a href="#de-limits">Grenzen und nächste Schritte</a>
+    </nav>
+
+    <!-- 01 -------------------------------------------------------------- -->
+    <section class="doc-section" id="de-scope" aria-labelledby="de-scope-title">
+      <p class="eyebrow">01</p>
+      <h2 id="de-scope-title">Umfang vor Code</h2>
+      <p class="doc-lede">Bewertet wird zuerst die Zuverlässigkeit der Bearbeitung und die Integrität des Dokuments. Bevor ich etwas schrieb, legte ich drei Zahlen fest: wie groß ein Dokument sein darf, wie schnell eine Bearbeitung sein muss und wie viel das ganze Projekt kosten darf. Jede Grenze hat einen Grund, und der Code setzt die meisten davon durch.</p>
+
+      <h3>Dokumentgröße</h3>
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th scope="col">Stufe</th><th scope="col">Grenze</th><th scope="col">Grund</th></tr></thead>
+          <tbody>
+            <tr><td>Unterstützt und getestet</td><td>≤ 15 Seiten · ≤ 300 Blöcke · <code>.docx</code> ≤ 5 MB</td><td>Die gesamte Dokumentansicht passt in einen Modellaufruf (20.000 Zeichen, etwa 5k Tokens).</td></tr>
+            <tr><td>Eingeschränkter Modus</td><td>Bis ~3.000 Absätze (~150 Seiten)</td><td>Der Agent nutzt <code>find_text</code> und Bereichsansichten: Es funktioniert weiter, mit mehr Aufrufen und Kosten.</td></tr>
+            <tr><td>Abgelehnt</td><td>&gt; 200 MB entpackt, &gt; 2.000 Teile, verschlüsselt, <code>.doc</code></td><td>Die Paketschicht lehnt sie ab, bevor ein Modell die Datei sieht.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Geschwindigkeit</h3>
+      <div class="cards">
+        <div class="card">
+          <h4>Deterministische Schicht</h4>
+          <p>Laden, Ansicht, Bearbeiten, Prüfen und Speichern in unter 1 Sekunde für 3.000 Absätze. Gemessen: etwa 0,4 s für die vollständige Ansicht und 0,4 s für die Validierung.</p>
+        </div>
+        <div class="card">
+          <h4>Eine Anweisung, von Anfang bis Ende</h4>
+          <p>Ziel p50 ≤ 30 s, nie mehr als 90 s. Geplant waren 3–5 Modellaufrufe; eine sichere Bearbeitung braucht jetzt 2 (siehe <a href="#de-architecture">Abschluss im selben Zug</a>). Züge und Wiederholungen sind in der Konfiguration begrenzt.</p>
+        </div>
+      </div>
+
+      <h3>Budget: $2, mit Absicht</h3>
+      <p>Mein verbleibendes API-Guthaben betrug $2 für Claude Sonnet 5.5 ($2 pro Million Eingabe-Tokens, $10 pro Million Ausgabe-Tokens). Ich habe es vor dem ersten Live-Aufruf verteilt:</p>
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th scope="col">Verwendung</th><th scope="col" class="num">Läufe</th><th scope="col" class="num">Schätzung</th></tr></thead>
+          <tbody>
+            <tr><td>Erster echter Test (typische Anbieterfehler finden)</td><td class="num">3</td><td class="num">~$0,40</td></tr>
+            <tr><td>Abzugebende Beispiele (die drei committeten Ausgaben)</td><td class="num">3–4</td><td class="num">~$0,50</td></tr>
+            <tr><td>Mini-Evaluation (fünf Fälle, je ein Lauf)</td><td class="num">5</td><td class="num">~$0,60</td></tr>
+            <tr><td>Reserve</td><td class="num">—</td><td class="num">~$0,50</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Dann habe ich es noch günstiger gemacht: Ich habe <b>Gemini 3.5 Flash-Lite</b> wegen seines kostenlosen Kontingents ergänzt, Beispiele und Evaluationen damit für $0 ausgeführt und Claude Sonnet 5.5 für die Live-Verifikation behalten. Beide Anbieter laufen durch denselben Graphen und dieselben Prüfungen.</p>
+      <p class="callout"><b>Ergebnis: $1,93 der $2 sind noch nicht ausgegeben.</b> Das gesamte Projekt kostete etwa $0,07 Claude-Guthaben bei einer Zuteilung von $2,00; die Reserve wurde nie angetastet.</p>
+
+      <h3>Schutzmaßnahmen: geplant und umgesetzt</h3>
+      <ul class="checklist">
+        <li><span class="status is-shipped">Umgesetzt</span><span><b>Aufrufe pro Lauf begrenzen.</b> Editor-Züge und Review-Aufrufe sind in den Einstellungen begrenzt; Live-Evaluationen teilen sich ein hartes Aufrufbudget (<code>--max-calls</code>). SDK-Wiederholungen sind aus, nichts wiederholt sich am Graphen vorbei.</span></li>
+        <li><span class="status is-shipped">Umgesetzt</span><span><b>Keine echten API-Aufrufe in Tests.</b> Jeder Graph-, CLI-, Menü- und Web-Test führt den echten LangGraph mit einem Skript-Modell aus.</span></li>
+        <li><span class="status is-shipped">Umgesetzt</span><span><b>Aufrufzahl vor jedem Live-Lauf ankündigen.</b> Eine Regel in den Agent-Anweisungen, und die CLI zeigt das Limit vor dem Start.</span></li>
+        <li><span class="status">Angepasst</span><span><b>Tokens und Kosten protokollieren.</b> Aufruf- und Token-Zahlen werden für jeden Beispiel- und Evaluationslauf erfasst; Kosten werden nur geschätzt, wenn Preise angegeben sind.</span></li>
+        <li><span class="status">Ersetzt</span><span><b>Lauf über $0,30 abbrechen.</b> Harte Aufrufgrenzen ersetzen die Preisverfolgung: Sie begrenzen die Kosten bei jedem Anbieter, auch bei einem kostenlosen.</span></li>
+      </ul>
+    </section>
+
+    <!-- 02 -------------------------------------------------------------- -->
+    <section class="doc-section" id="de-planning" aria-labelledby="de-planning-title">
+      <p class="eyebrow">02</p>
+      <h2 id="de-planning-title">Planung: das Modell schlägt vor, ich entscheide</h2>
+      <p class="doc-lede">Ich habe mit Claude Opus 5.5 auf hohem Aufwand geplant und ihm die Rahmenbedingungen gegeben, nicht die Lösung. Der Plan kam als explizite Entscheidungen mit je einer Empfehlung zurück, und jede davon habe ich getroffen.</p>
+
+      <blockquote class="prompt">
+        <p>„Wir müssen dieses Assessment umsetzen; plane so, dass alle Kernanforderungen abgedeckt sind. Zuerst die Kernanforderungen solide abdecken, danach überlegen wir, ein Frontend hinzuzufügen und es zu deployen. Eine CI/CD-Pipeline muss jede Änderung bestätigen. Ein Branch, <code>main</code>: Das Projekt dauert 24–36 h. Nicht eigenständig committen; die Commits mache ich. Wir nehmen die optionale Challenge an, besonders die Test-und-Fix-Schleifen. Und denk daran, dass wir synthetische Daten erzeugen müssen.“</p>
+        <footer>Mein Planungs-Prompt, leicht bearbeitet und übersetzt</footer>
+      </blockquote>
+
+      <div class="cards">
+        <div class="card">
+          <p class="card-q">Welcher LLM-Anbieter?</p>
+          <h4>Anthropic Claude</h4>
+          <p>Über <code>langchain-anthropic</code>, standardmäßig Sonnet 5.5 und konfigurierbar. Verworfen: OpenAI und ein anbieterneutrales Setup mit mehr Konfigurationsaufwand. Später kam Gemini 3.5 Flash-Lite wegen des kostenlosen Kontingents dazu.</p>
+        </div>
+        <div class="card">
+          <p class="card-q">Welches Python-Tooling?</p>
+          <h4>uv + Python 3.12</h4>
+          <p>Mein Rechner hatte Python 3.10 und kein uv. uv bringt eine Lock-Datei mit, verwaltet die Python-Version selbst und ist in CI trivial. Verworfen: pip + venv mit 3.10.</p>
+        </div>
+        <div class="card">
+          <p class="card-q">Live-LLM-Aufrufe in CI?</p>
+          <h4>Deterministische CI, manuelle Live-Evaluationen</h4>
+          <p>Jeder Push führt Lint, Typprüfung und Tests mit einem Skript-Modell aus. Live-Evaluationen laufen nur auf Anforderung (<code>workflow_dispatch</code>). Verworfen: Live-Evaluationen bei jedem Push (teuer, unzuverlässig).</p>
+        </div>
+        <div class="card">
+          <p class="card-q">Von Anfang an eine HTTP-API?</p>
+          <h4>Zuerst CLI, API mit dem Frontend</h4>
+          <p>Die Kernphase blieb auf Bearbeitung und Integrität fokussiert. FastAPI kam mit der Web-Oberfläche, als die Engine erprobt war.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 -------------------------------------------------------------- -->
+    <section class="doc-section" id="de-portability" aria-labelledby="de-portability-title">
+      <p class="eyebrow">03</p>
+      <h2 id="de-portability-title">Gebaut, um einen Wechsel von Agent oder Anbieter zu überstehen</h2>
+      <p class="doc-lede">Zu Beginn der Challenge lag meine wöchentliche Claude-Code-Nutzung bereits bei 95 %. Mittendrin auszugehen war ein reales Risiko, also habe ich das Projekt vor Schritt zwei portabel gemacht.</p>
+      <div class="usage" role="img" aria-label="Claude-Code-Nutzung zu Beginn: Sitzung 6 %, Woche 95 %">
+        <div class="usage-row"><span>Sitzung (5 h)</span><span class="usage-bar"><i style="width: 6%"></i></span><b>6 %</b></div>
+        <div class="usage-row"><span>Woche (7 Tage)</span><span class="usage-bar is-high"><i style="width: 95%"></i></span><b>95 %</b></div>
+      </div>
+      <ul class="plain-list">
+        <li><b>Anbieterneutrale Regeln.</b> <code>AGENTS.md</code> enthält die Arbeitsregeln und Integritätsinvarianten für jeden Coding-Agenten; <code>CLAUDE.md</code> bindet sie nur ein.</li>
+        <li><b>Eine Übergabedatei, an jedem Checkpoint aktualisiert.</b> Mit <code>docs/HANDOFF.md</code> kann ein Agent ohne jeden Kontext weitermachen; sie geht davon aus, dass Claude-spezifische Integrationen nicht mitkommen.</li>
+        <li><b>Eine Schranke, die jeder Agent ausführen kann.</b> <code>make check</code> (Lint, strikte Typen, Tests, Coverage) ist lokal und in CI identisch.</li>
+      </ul>
+      <p class="callout">Es hat sich ausgezahlt: Spätere Checkpoints entstanden mit einem anderen Coding-Agenten, der über die Übergabedatei einstieg und dieselbe Schranke von Hand ausführte, wo die Claude-eigenen Hooks nicht mehr griffen.</p>
+    </section>
+
+    <!-- 04 -------------------------------------------------------------- -->
+    <section class="doc-section" id="de-architecture" aria-labelledby="de-architecture-title">
+      <p class="eyebrow">04</p>
+      <h2 id="de-architecture-title">Architekturentscheidungen</h2>
+      <p class="doc-lede">Jede Entscheidung dient dem ersten Bewertungskriterium: Eine Bearbeitung muss genau das ändern, was verlangt wurde, und sonst nichts, und das muss prüfbar sein.</p>
+
+      <div class="cards">
+        <div class="card">
+          <h4>Eigene OPC-Schicht statt python-docx</h4>
+          <p>python-docx serialisiert beim Speichern jeden geladenen Teil neu. Ich lese und schreibe das ZIP mit <code>zipfile</code> und <code>lxml</code>, parse nur <code>word/document.xml</code> und kopiere jeden anderen Teil unverändert. python-docx erzeugt nur Test-Fixtures und prüft Ausgaben.</p>
+        </div>
+        <div class="card">
+          <h4>Stabile Block-IDs</h4>
+          <p><code>p0</code>, <code>t0.r1.c2.p0</code> für Tabellenzellen, <code>n0</code> für eingefügte Absätze, Grabsteine für gelöschte. Die IDs leben in Python, nie im XML, und verschieben sich während einer Sitzung nie.</p>
+        </div>
+        <div class="card">
+          <h4>Lauf-bewusstes Bearbeiten</h4>
+          <p>Eine Zeichenkarte über die Runs; Rand-Runs werden durch Klonen ihrer Formatierung geteilt, sodass neuer Text die Formatierung des ersetzten Texts erbt. Bereiche, die Bilder, Felder oder Fußnotenverweise berühren, werden mit einem Fehler abgelehnt, auf den das Modell reagieren kann.</p>
+        </div>
+        <div class="card">
+          <h4>Prüfung vor Urteil</h4>
+          <p>Zuerst läuft eine deterministische Integritätsprüfung; erst dann bewertet ein separates Modell das Ergebnis über strukturierte JSON-Schema-Ausgabe. Ein Fehlschlag setzt das Dokument auf das Original zurück und hängt Feedback an; der Verlauf wird nie umgeschrieben.</p>
+        </div>
+        <div class="card">
+          <h4>Zwei Aufrufe für eine sichere Bearbeitung</h4>
+          <p>Das Modell darf alle Änderungen anwenden und im selben Zug <code>finish</code> aufrufen; das spart eine Runde. Scheitert eine Änderung in diesem Zug, wird <code>finish</code> abgebrochen, und das Modell sieht den Grund.</p>
+        </div>
+        <div class="card">
+          <h4>Kosten konstruktiv begrenzt</h4>
+          <p>SDK-Wiederholungen sind deaktiviert, Aufrufgrenzen liegen im Graphen, und das Modell bekommt weder Shell noch Code-Ausführung, nur typisierte Dokument-Tools. Kein <code>temperature</code> und kein erzwungenes <code>tool_choice</code>, das aktuelle Claude-Modelle ablehnen.</p>
+        </div>
+      </div>
+
+      <h3>Ein expliziter StateGraph statt eines fertigen Agenten</h3>
+      <p>Jede Route ist deklariert, und ein Test fixiert die Kanten des kompilierten Graphen: Der Kontrollfluss lässt sich lesen und testen, statt ihn zu erraten.</p>
+      <div class="flow" aria-label="Graph: Laden, Agent und Tools, Validieren, Review, Speichern">
+        <span>Laden</span><i aria-hidden="true">→</i>
+        <span>Agent ⇄ Tools</span><i aria-hidden="true">→</i>
+        <span>Validieren</span><i aria-hidden="true">→</i>
+        <span>Review</span><i aria-hidden="true">→</i>
+        <span class="is-end">Speichern</span>
+      </div>
+      <p class="caption flow-note">Eine Rückfrage pausiert den Graphen mit <code>interrupt()</code> und setzt mit Ihrer Antwort fort. Eine gescheiterte Prüfung oder ein abgelehntes Review setzt auf das Original zurück und versucht es erneut, bis zu einer Grenze; sind die Versuche aufgebraucht, wird nichts geschrieben.</p>
+    </section>
+
+    <!-- 05 -------------------------------------------------------------- -->
+    <section class="doc-section" id="de-integrity" aria-labelledby="de-integrity-title">
+      <p class="eyebrow">05</p>
+      <h2 id="de-integrity-title">Wie Integrität belegt wird</h2>
+      <p class="doc-lede">Fünf Invarianten, durchgesetzt vom Prüfer bei jeder Bearbeitung und von der Testsuite bei jedem Push.</p>
+      <ol class="invariants">
+        <li>ZIP-Teile, die wir nicht bearbeitet haben, behalten ihren exakten Inhalt, mit gleichen Namen, gleicher Reihenfolge und Kompression.</li>
+        <li>Absätze und Tabellen, die eine Bearbeitung nicht berührt hat, sind als kanonisches XML identisch.</li>
+        <li>In einem bearbeiteten Absatz behält jedes Zeichen außerhalb der Änderung seine Formatierung.</li>
+        <li>Geschützte Inhalte (Zeichnungen, Felder, Fußnotenverweise, Abschnittseigenschaften) werden nie stillschweigend entfernt.</li>
+        <li>python-docx speichert nie Agent-Ausgaben.</li>
+      </ol>
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th scope="col">Ebene</th><th scope="col">Was sie belegt</th></tr></thead>
+          <tbody>
+            <tr><td>Round Trip</td><td>Der erste geschriebene Test: Laden und Speichern ohne Änderung verändert nichts.</td></tr>
+            <tr><td>Unit- und Korruptionstests</td><td>Jedes Tool und jeder Ablehnungspfad funktioniert, und der Prüfer erkennt absichtlich eingebaute Schäden: geänderte Formatierung, ein entferntes Bild, ein veränderter unberührter Absatz.</td></tr>
+            <tr><td>Property-basiert (Hypothesis)</td><td>Zufällige Absätze, Run-Aufteilungen und Formate mit zufälligen Änderungen: Der Text stimmt, die Formatierung außerhalb bleibt erhalten, und genau ein Block wird berührt.</td></tr>
+            <tr><td>Graph, CLI, Menü und Web</td><td>Der echte LangGraph mit einem Skript-Modell: Normalfall, Rückfrage, gescheiterte Validierung, abgelehntes Review, aufgebrauchte Versuche.</td></tr>
+            <tr><td>Committete Beispiele</td><td>CI prüft die drei echten Modellausgaben bei jedem Push erneut gegen ihre Eingaben.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 06 -------------------------------------------------------------- -->
+    <section class="doc-section" id="de-loop" aria-labelledby="de-loop-title">
+      <p class="eyebrow">06</p>
+      <h2 id="de-loop-title">Die Test-und-Fix-Schleife</h2>
+      <p class="doc-lede">Ich habe diese optionale Challenge gewählt, weil sie das Produkt spiegelt: Der eigene Validieren-Review-Wiederholen-Zyklus des Agenten ist dasselbe Muster zur Laufzeit.</p>
+      <div class="flow" aria-label="Entwicklungsschleife">
+        <span>Änderung</span><i aria-hidden="true">→</i>
+        <span>Format + schnelle Tests</span><i aria-hidden="true">→</i>
+        <span><code>make check</code></span><i aria-hidden="true">→</i>
+        <span>Review</span><i aria-hidden="true">→</i>
+        <span>Mein Commit</span><i aria-hidden="true">→</i>
+        <span class="is-end">CI</span>
+      </div>
+      <div class="flow" aria-label="Schleife bei Live-Fehlern">
+        <span>Live-Fehler</span><i aria-hidden="true">→</i>
+        <span>Aufgezeichneter Trace</span><i aria-hidden="true">→</i>
+        <span>Offline-Regressionstest</span><i aria-hidden="true">→</i>
+        <span>Fix</span><i aria-hidden="true">→</i>
+        <span class="is-end">Gezielter Live-Lauf</span>
+      </div>
+      <p>Anfangs führten Editor-Hooks nach jeder Änderung Lint und die schnellen Tests aus, und ein Stop-Hook ließ den Coding-Agenten nicht fertig werden, solange die Schranke rot war. Diese reinen Entwicklungs-Hooks gehören nicht zur Abgabe; die Schranke und CI schon.</p>
+
+      <h3>Fehler, die die Schleife gefunden hat</h3>
+      <div class="table-wrap">
+        <table class="doc-table">
+          <thead><tr><th scope="col">Was schiefging</th><th scope="col">Wie es behoben wurde</th></tr></thead>
+          <tbody>
+            <tr><td>Eine breite Ersetzung übertrug Fettdruck von einem Datum auf unveränderten kursiven Text.</td><td>Die Integritätsprüfung lehnte es vor dem Speichern ab. Änderungen sind jetzt an Tokens ausgerichtet und werden atomar angewendet; ein Property-Test behält das gefundene Gegenbeispiel.</td></tr>
+            <tr><td>Das Modell änderte beide von zwei mehrdeutigen Daten, und das Review stimmte zu.</td><td>Die unabhängige Evaluation ließ den Fall durchfallen. Der Trace wurde zum Regressionstest, und der Prompt verlangt jetzt eine Rückfrage.</td></tr>
+            <tr><td>Das Review lehnte einen korrekt geerbten Aufzählungspunkt ab, weil es nur Text sah.</td><td>Graph-Regressionstest; das Review sieht jetzt die tatsächlichen Stile der berührten Blöcke.</td></tr>
+            <tr><td>In einer auf macOS erstellten <code>.docx</code> tippte das Zitieren eines Halbgeviertstrichs als „-“ den Strich des Dokuments neu.</td><td>Tolerante Treffer schreiben jetzt die eigenen Zeichen des Dokuments zurück, wo der Text unverändert ist.</td></tr>
+            <tr><td>Die Reproduzierbarkeit der Beispiele bestand auf macOS und scheiterte in Linux-CI.</td><td>Pillows Schriftdarstellung war plattformabhängig; die Beispiele nutzen jetzt ein festes Logo, und ein Test verbietet Systemschriften.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 07 -------------------------------------------------------------- -->
+    <section class="doc-section" id="de-evidence" aria-labelledby="de-evidence-title">
+      <p class="eyebrow">07</p>
+      <h2 id="de-evidence-title">Was die Messungen sagen und was nicht</h2>
+      <div class="cards">
+        <div class="card">
+          <h4>5/6, dann 6/6</h4>
+          <p>Die erste Live-Baseline scheiterte am Mehrdeutigkeitsfall. Nach einer Prompt-Korrektur bestanden alle sechs Fälle: 35 Gemini-Aufrufe, $0. In diesem Lauf war jedes Nichtbestehen ein Anbieter-503, nie Verhalten des Agenten.</p>
+        </div>
+        <div class="card">
+          <h4>Neun unbekannte Anweisungen</h4>
+          <p>Live auf Gemini und Claude Sonnet 5.5 ohne Wiederholungen: Keine gespeicherte Ausgabe verletzte die Integrität. Fehlschläge waren Ablehnungen, bei denen nichts geschrieben wurde. Die Prüfung deckte außerdem zwei deterministische Fehler und ein Prompt-Problem auf, alle mit Regressionstests behoben.</p>
+        </div>
+      </div>
+      <p class="callout">Jeder Evaluationsfall bestand einmal: ein Korrektheitsnachweis, keine gemessene Erfolgsquote. Die Live-Läufe liegen vor der Optimierung mit Abschluss im selben Zug, die durch Offline-Graph-Tests abgedeckt ist.</p>
+    </section>
+
+    <!-- 08 -------------------------------------------------------------- -->
+    <section class="doc-section" id="de-timeline" aria-labelledby="de-timeline-title">
+      <p class="eyebrow">08</p>
+      <h2 id="de-timeline-title">Zeitleiste</h2>
+      <p class="doc-lede">Kleine Checkpoints auf <code>main</code>. Die Reihenfolge zählt: Schäden am Dokument wurden sichtbar, bevor überhaupt ein Modell beteiligt war.</p>
+      <ol class="timeline">
+        <li><time>09:59</time><p><b>Grundgerüst.</b> uv, Ruff, striktes mypy, pytest, Makefile und grüne CI mit leerer Suite.</p></li>
+        <li><time>10:49</time><p><b>Paketschicht.</b> Der erste Test: Laden und Speichern ohne Änderung ist byte-identisch.</p></li>
+        <li><time>11:34</time><p><b>Lauf-bewusste Operationen</b> mit Unit- und Property-Tests.</p></li>
+        <li><time>11:54</time><p><b>Integritätsprüfer</b> sowie <code>inspect</code> und <code>verify</code>.</p></li>
+        <li><time>12:23</time><p><b>LangGraph-Agent</b> und der Befehl <code>edit</code>, getestet mit einem Skript-Modell.</p></li>
+        <li><time>12:47</time><p><b>Erste Live-Läufe</b> und reproduzierbare synthetische Beispiele; Korrekturen aus dem ersten echten Test um 13:02.</p></li>
+        <li><time>13:56</time><p><b>Begrenzte Live-Evaluationen</b> und ein manueller CI-Workflow.</p></li>
+        <li><time>15:25</time><p><b>Dokumentation</b>, danach ein Durchgang, der reine Entwicklungsdateien entfernte.</p></li>
+        <li><time>19:05</time><p><b>6/6 Live-Evaluationen</b>; Claude Sonnet 5.5 um 19:17 verifiziert.</p></li>
+        <li><time>20:10</time><p><b>Zuverlässigkeitsprüfung vor Abgabe</b> mit unbekannten Anweisungen.</p></li>
+        <li><time>23:05</time><p><b>Lokale Web-Oberfläche</b> und die Bearbeitung mit zwei Aufrufen.</p></li>
+        <li><time>Danach</time><p><b>Interaktives Terminal-Menü</b> und diese Seite.</p></li>
+      </ol>
+    </section>
+
+    <!-- 09 -------------------------------------------------------------- -->
+    <section class="doc-section" id="de-limits" aria-labelledby="de-limits-title">
+      <p class="eyebrow">09</p>
+      <h2 id="de-limits-title">Bewusst benannte Grenzen und nächste Schritte</h2>
+      <div class="cards">
+        <div class="card">
+          <h4>Heute außerhalb des Umfangs</h4>
+          <p>Kopf- und Fußzeilen, Fußnoten, Kommentare und Textfelder sind schreibgeschützt. Kein Einfügen von Tabellen oder Bildern, keine Änderung von Hyperlink-Zielen, keine Textbereiche über Absätze hinweg. Nicht unterstützte Wünsche führen zu einer Rückfrage mit Alternative, nie zu einer stillen Annäherung. Sprachen: Englisch und Deutsch sind unterstützt und getestet; andere Sprachen mit lateinischer Schrift sind ungetestet, Rechts-nach-links-Schrift und CJK werden nicht unterstützt.</p>
+        </div>
+        <div class="card">
+          <h4>Als Nächstes</h4>
+          <p>Bearbeitung von Kopf- und Fußzeilen; dauerhafte Checkpoints, damit eine pausierte Bearbeitung einen Neustart übersteht; wiederholte Evaluationsläufe für eine echte Erfolgsquote; Darstellungsprüfungen in Word oder LibreOffice in CI; danach ein gehostetes Deployment.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot caption">
+      <a class="action-link small" href="/">Zurück zum Editor</a>
+      <span>Alle Beispielinhalte sind synthetisch.</span>
+    </footer>
+    </div>
   </main>
 </body>
 </html>

@@ -45,7 +45,7 @@ hooks and generated logs were removed from the final deliverable. The gate and C
   not a statistical reliability claim. Nine unseen live cases on Gemini and Sonnet 5.5 found one
   prompt issue (unsupported features could be approximated; a first wording over-refused link
   text) and two deterministic bugs, all fixed with regressions.
-- Last full gate: **317 tests, 98.14% source coverage**; same checks passed with the CI Hypothesis
+- Last full gate: **319 tests, 98.14% source coverage**; same checks passed with the CI Hypothesis
   profile. Local/static integrity tests, corruption tests and real graph execution are separate evidence.
 
 All public fixtures are synthetic. A private user document was edited locally and remains
