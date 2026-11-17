@@ -22,6 +22,7 @@ jobs:
     env:
       # CI never talks to the real model: graph tests use a scripted fake LLM.
       ANTHROPIC_API_KEY: ""
+      GEMINI_API_KEY: ""
       HYPOTHESIS_PROFILE: ci
     steps:
       - uses: actions/checkout@v4

@@ -3,7 +3,7 @@
 > Read this first, then `AGENTS.md` (rules). Written so any agent (Claude, Codex, Cursor, Gemini…)
 > with **zero prior context** can continue. Updated at every commit checkpoint.
 
-**Last updated:** 2026-11-17 · after step 4 (integrity checker, view, CLI inspect/verify) · **Deadline:** Thu 2026-11-19
+**Last updated:** 2026-11-17 · after step 5 (LangGraph agent + CLI edit) · **Deadline:** Thu 2026-11-19
 
 ## 1. The task
 Olymp technical case study: a **LangGraph agent (Python)** that edits existing `.docx` files from
@@ -23,8 +23,8 @@ deploy to a subdomain of janguzman.com.
 | 2 | Package layer (`document/package.py`) + no-op round-trip tests + fixture builders | ✅ done |
 | 3 | Block index + run-aware ops (`blocks.py`, `runs.py`, `ops.py`) + unit & property tests | ✅ done |
 | 4 | Integrity checker (`integrity.py`) + corruption tests + CLI `inspect` / `verify` | ✅ done |
-| 5 | LangGraph graph, tools, prompts + fake-LLM graph tests + CLI `edit` | ⏭ next |
-| 6 | First live run (Gemini free tier), fix provider gotchas | ☐ |
+| 5 | LangGraph graph, tools, prompts + fake-LLM graph tests + CLI `edit` | ✅ done |
+| 6 | First live run (Gemini free tier), fix provider gotchas | ⏭ next |
 | 7 | Synthetic samples (`samples/`), committed outputs verified in CI | ☐ |
 | 8 | Small live eval set + `evals.yml` (workflow_dispatch) + eval→regression loop | ☐ |
 | 9 | README + `docs/DEVELOPMENT.md` final write-up | ☐ |
@@ -59,11 +59,18 @@ CI: `.github/workflows/ci.yml` runs the same gate on every push to `main` (no LL
   re-merged, so a one-word change usually leaves the run structure as it was.
 - **Paragraph-level `\n`:** a newline in new text becomes a line break (`w:br`) inside the same
   paragraph; new paragraphs only via `insert_paragraph`.
-- **LLM provider:** configurable. **Default: Google Gemini (free tier, 500 req/day, EU — not used
-  for training)**; Anthropic Claude optional (only ~$2 credit). Env vars in `.env.example`
-  (`GEMINI_API_KEY`, `GEMINI_MODELS`, `ANTHROPIC_API_KEY`, `DOCX_AGENT_*`). Plan: LangChain
-  `init_chat_model` / `langchain-google-genai` native client (decide in step 5; the
-  OpenAI-compatible `GEMINI_BASE_URL` is a fallback).
+- **LLM provider:** Google Gemini by default, using native `langchain-google-genai` (added and
+  locked in step 5); Anthropic remains optional. `DOCX_AGENT_PROVIDER=google_genai|anthropic`,
+  `DOCX_AGENT_MODEL` (or CLI `--model`), `DOCX_AGENT_EFFORT=low|medium|high`.
+  An empty model selects the first nonempty `GEMINI_MODELS` entry for Gemini, or
+  `claude-sonnet-5-5` for Anthropic. Keys: `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`.
+  `.env.example` now matches this default; `GEMINI_BASE_URL` is unused and removed from the
+  example. No automatic provider/model fallback. The model IDs/effort settings have **not**
+  been tested live; validate those in step 6. Do not assume provider quotas/data terms.
+- **Call budgets:** SDK retries are disabled, editor turns capped across all attempts
+  (`DOCX_AGENT_MAX_TURNS`, default 30, range 1–100), validation/review share at most two resets
+  (`DOCX_AGENT_MAX_RETRIES`, default 2). Separate structured review calls are at most retries+1.
+  The CLI announces those upper bounds. Provider refusals stop immediately.
 - **CI never calls an LLM.** Graph tests use a scripted fake chat model. Live evals only via
   manual `workflow_dispatch`. Never run live calls casually (token budget).
 - Single `main` branch; **the human commits** — agents never commit/push.
@@ -148,22 +155,54 @@ CI: `.github/workflows/ci.yml` runs the same gate on every push to `main` (no LL
   `check(touched, allow_removed)` ok **and** python-docx reopens with the expected texts
   (stress-run 2 000 sessions).
 
-**Step 5 — LangGraph (`src/docx_agent/agent/`)** explicit `StateGraph` (not `create_react_agent`):
-`load → agent ⇄ tools`; `ask_clarification` → `clarify` (`interrupt()`, CLI resumes with
-`Command(resume=…)`, `--non-interactive` exits 3); `finish` → `validate` (deterministic integrity
-+ op-effect check; on fail reset doc to original and feed back the diff, ≤2 retries) → `review`
-(LLM judge on before/after of touched blocks, structured `{approved, reason}`, ≤2) → `save`
-(writes output + `report.json`; nothing written on failure unless `--force`; `--dry-run`).
-Document lives in a `DocumentSession` passed via LangGraph runtime context; checkpointer
-`InMemorySaver`. Tools (`@tool`, Pydantic args): `view_document`, `find_text`, `replace_text`,
-`insert_text`, `delete_text`, `insert_paragraph`, `delete_paragraph`, `ask_clarification`, `finish`.
-Message history is append-only. **Validate must also check each op's effect against the
-report** (replace/insert/delete_text ⇒ that block `modified` with `EditResult.after` text;
-insert_paragraph ⇒ an `inserted` change with that text; delete_paragraph ⇒ `deleted`), because
-the checker alone can pair a buggy insert with a deleted paragraph (review step 4).
-Pass `touched` = union of `EditResult.touched`, `allow_removed` = union of `.removed`.
-Graph tests with a scripted fake LLM: happy path, ambiguity →
-interrupt → resume, validation fail → retry, review reject, retries exhausted, dry-run.
+**Step 5 — delivered** — `make check`: **226 tests, 99.41% overall branch-aware coverage**.
+- `agent/session.py`: `DocumentSession(original_bytes)`, package/index/styles, `edits`, `reset`,
+  `apply`, `validate`. Final integrity uses unions of `.touched` / `.removed`. Each successful
+  operation also records before/after package bytes and the target's IDs as a fresh disk index
+  would assign them (stable session IDs may differ after insertions/deletions). Validation
+  checks each snapshot's integrity and claimed effect: text ops must be modified with the
+  claimed text, insert/delete paragraphs must be inserted/deleted. Exact no-ops are allowed.
+  Journal continuity detects changes outside the wrappers. This addresses step 4's disguised
+  insert/delete pairing gap without rejecting multi-op edits to the same block or cancelling
+  edits by comparing intermediate text with the final output. Snapshot memory/CPU cost is
+  proportional to document size × successful operations; fine for case-study documents.
+- `agent/tools.py`: nine typed `@tool` wrappers (inferred Pydantic schemas). Only document
+  operations are exposed, no shell/code execution. Structured errors are recoverable feedback.
+  A custom tools node runs batches **sequentially**; finish/clarification must be called alone
+  (mixed batches are rejected before executing any edits).
+- `agent/graph.py`: explicit `load → agent ⇄ tools`; `clarify` is a separate `interrupt()` node,
+  so resume never replays edits. `finish → validate → review → save`. Validation failure or
+  review rejection resets the document and appends reason/diff + fresh view to the history,
+  sharing ≤2 retries. `AgentState` is checkpointed with `InMemorySaver`; mutable session and
+  output options live in runtime `AgentContext`. Messages are append-only (`operator.add`).
+  Review is a separate model call with strict `{approved: bool, reason: str}` JSON schema,
+  original view, user answers, complete diff and operation log. Original view is budgeted;
+  deterministic checks still cover the full document. Malformed reviews/model failures stop
+  without saving. Unreadable output becomes validation feedback. Refusals stop further calls.
+- `agent/prompts.py`: quote/ID contracts, ambiguity policy, protected-content rules, reset
+  semantics; embedded document instructions are treated as data.
+- `agent/models.py`: pydantic-settings + `.env`, native Gemini and Anthropic constructors.
+  No implicit SDK retries; effort/timeout configured, no temperature or forced tool choice.
+  Reviewer uses `with_structured_output(..., method="json_schema")`.
+- CLI `edit IN.docx "instruction" -o OUT.docx [--report path.json] [--model ID]
+  [--provider google_genai|anthropic] [--non-interactive] [--dry-run] [--force]`.
+  Default report: `OUT.report.json` (e.g. `out.docx` → `out.report.json`). Normal success exits 0;
+  failed checks/provider calls exit 1; bad input/config/I/O exits 2; clarification required in
+  non-interactive mode exits 3. Interactive answers resume the same checkpoint/context.
+  `--dry-run` still calls models and validates/reviews, but writes **no files**; diff is printed.
+  `--force` saves the final failed-check attempt/report after retries and still exits 1;
+  it does not override model failures, clarification, or the editor turn cap.
+- `agent/artifacts.py`: stages both files, then atomic per-file renames; ordinary publication
+  errors roll back previous file contents and clean temporary files. Two files are **not** a
+  crash-atomic transaction. CLI rejects input overwrites and document/report aliases (including
+  hardlinks). Existing explicit output paths may be replaced. New files use private temp-file
+  permissions. No directories are created automatically.
+- Tests: `tests/graph/fake.py` scripted `BaseChatModel`; real graph happy path, ambiguity/resume,
+  validation retry, review retry/exhaustion, force, dry-run, invalid tools/control batches,
+  sequential dependent edits, bounded turns, refusal handling and unreadable output.
+  `tests/test_cli_edit.py` exercises actual CLI + graph with the fake. Unit tests cover model
+  configuration, all wrappers, journal effects, unjournaled corruption and save rollback.
+  CI blanks both provider keys. No live LLM calls were made in step 5.
 
 **Steps 7–9:** `samples/generate.py` (deterministic python-docx generators: session note, treatment
 plan with merged table + image + hyperlink, practice letter with section break) — all marked
@@ -191,16 +230,32 @@ decisions, limitations, how integrity is tested.
 - **Claude Code tool input decodes `\uXXXX`**: escapes written via Write/Edit land as literal
   characters (then RUF001 fails). Use `chr(0x…)` constants for special characters.
 - Coverage gate: `fail_under = 85` (global) in `pyproject.toml`.
+- Step 5: `uv add langchain-google-genai` needed network/cache sandbox approval; dependency
+  install succeeded, with no model calls. For sandboxed local checks use
+  `UV_CACHE_DIR=/tmp/docx-agent-uv-cache make check` if the default uv cache is unwritable.
+- iCloud hid `docx_agent.pth` again during step 5. Cleared its hidden flag locally;
+  `uv run docx-agent edit --help` works. This is an environment repair, not a tracked change.
+- Clarification checkpoints are **in-process only**. Resume must use the same graph/thread ID
+  and the same mutable session; there is no cross-process resume CLI or durable storage yet.
 - Known limitations so far (README later): a field spanning paragraphs is detected by counting
   `fldChar` begin/end before the paragraph (TOC entries are read-only); edits never span
   paragraphs; hyperlink targets are not editable; ParagraphMap is rebuilt per op (fine for
   case-study sizes, cache if long documents get slow).
 
 ## 7. Next action
-Start **step 5** (spec in §5): `src/docx_agent/agent/` — `DocumentSession` (original bytes,
-`DocxPackage`, `BlockIndex`, `StyleCatalog`, edit log of `EditResult`s, `reset()` = reload from the
-original bytes), thin `@tool` wrappers over `document.ops` returning `EditResult.to_dict()` /
-`EditError.to_dict()` as JSON, `view_document` = `view.render`, explicit `StateGraph`
-(load → agent ⇄ tools → clarify(interrupt) / validate → review → save), scripted fake chat model
-for graph tests, CLI `edit`. LLM provider decision (Gemini default vs Anthropic) is still open —
-read §4 first; never make live calls in tests. Finish with `/checkpoint`, then stop for the human.
+Step 5 is ready for the **human to review and commit**; nothing was staged or committed.
+Suggested commit: `feat: add bounded LangGraph document editing agent and CLI`.
+
+After that, start **step 6**: one announced, tightly capped Gemini smoke run on a synthetic
+fixture (e.g. rich fixture, change table `8h` → `7.5h`). Expect 2 editor calls + 1 review call;
+use `DOCX_AGENT_MAX_TURNS=3 DOCX_AGENT_MAX_RETRIES=0` to cap at 4 total, and announce the cap
+before running. Check nonsecret provider/model settings first: an older `.env` may still have
+`DOCX_AGENT_MODEL=claude-sonnet-5-5`, which must be cleared or paired with `anthropic`.
+Validate native SDK model IDs, thinking/effort compatibility, tool messages and JSON-schema
+review behavior. Fix any issue with a deterministic failing test first; run `verify` on the
+result and `make check`. Do not casually try fallback models or consume the Anthropic credit.
+Samples/evals remain steps 7/8; no live outputs exist yet.
+
+API references consulted in step 5:
+[LangGraph interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts),
+[native Gemini integration](https://docs.langchain.com/oss/python/integrations/chat/google_generative_ai).

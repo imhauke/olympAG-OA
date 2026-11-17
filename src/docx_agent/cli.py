@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
+from uuid import uuid4
 
 import typer
+from langchain_core.runnables import RunnableConfig
+from langgraph.types import Command
 
 from docx_agent import __version__
+from docx_agent.agent.graph import AgentContext, AgentError, build_graph
+from docx_agent.agent.models import Settings, create_model
+from docx_agent.agent.session import DocumentSession
 from docx_agent.document.blocks import BlockIndex
 from docx_agent.document.errors import EditError
 from docx_agent.document.integrity import IntegrityReport, check
@@ -101,6 +107,86 @@ def verify(
     else:
         _print_report(report)
     if not report.ok:
+        raise typer.Exit(1)
+
+
+@app.command()
+def edit(
+    path: DocxPath,
+    instruction: Annotated[str, typer.Argument(help="Requested edits in natural language.")],
+    *,
+    output: Annotated[Path, typer.Option("--output", "-o", help="Output .docx path.")],
+    report: Annotated[Path | None, typer.Option(help="Default: OUTPUT.report.json.")] = None,
+    model: Annotated[str | None, typer.Option(help="Override DOCX_AGENT_MODEL.")] = None,
+    provider: Annotated[
+        Literal["google_genai", "anthropic"] | None,
+        typer.Option(help="Override DOCX_AGENT_PROVIDER."),
+    ] = None,
+    non_interactive: Annotated[
+        bool, typer.Option(help="Exit 3 if clarification is needed.")
+    ] = False,
+    dry_run: Annotated[
+        bool, typer.Option(help="Validate and review without writing files.")
+    ] = False,
+    force: Annotated[
+        bool, typer.Option(help="Save failed validation/review after retries (exit 1).")
+    ] = False,
+) -> None:
+    """Edit a document with a bounded tool-calling agent; preserve the original."""
+    try:
+        settings = Settings()
+        if provider is not None:
+            settings.provider = provider
+        if model is not None:
+            settings.model = model
+        session = DocumentSession(path.read_bytes())
+        context = AgentContext(
+            session=session,
+            output=output,
+            report=report,
+            dry_run=dry_run,
+            force=force,
+            max_retries=settings.max_retries,
+            max_turns=settings.max_turns,
+        )
+        if not instruction.strip():
+            raise ValueError("The instruction must not be empty.")
+        for destination in (output, context.report_path):
+            if destination.resolve() == path.resolve() or (
+                destination.exists() and destination.samefile(path)
+            ):
+                raise ValueError("Output and report must not overwrite the input.")
+            if not destination.parent.is_dir() or destination.is_dir():
+                raise ValueError(f"Destination is not a writable file path: {destination}")
+        chat_model = create_model(settings)
+        graph = build_graph(chat_model)
+        config: RunnableConfig = {
+            "configurable": {"thread_id": str(uuid4())},
+            "recursion_limit": 4 * settings.max_turns + 20,
+        }
+        typer.echo(
+            f"Editing with {settings.provider}/{settings.model_name}; "
+            f"at most {settings.max_turns} editor calls and "
+            f"{settings.max_retries + 1} review calls.",
+            err=True,
+        )
+        state = graph.invoke({"instruction": instruction}, config, context=context)
+        while state.get("__interrupt__"):
+            question = state["__interrupt__"][0].value["question"]
+            if non_interactive:
+                typer.echo(f"Clarification required: {question}", err=True)
+                raise typer.Exit(3)
+            answer = typer.prompt(question)
+            state = graph.invoke(Command(resume=answer), config, context=context)
+    except (PackageError, OSError, ValueError) as exc:
+        raise _fail(str(exc)) from exc
+    except AgentError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"{state['status']}: {state.get('reason', '')}")
+    if state.get("integrity"):
+        typer.echo(json.dumps(state["integrity"], ensure_ascii=False, indent=2))
+    if state["status"] in {"failed", "forced"}:
         raise typer.Exit(1)
 
 
