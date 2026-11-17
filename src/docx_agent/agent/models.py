@@ -1,6 +1,6 @@
 """Explicit provider configuration; constructing a client never runs a model."""
 
-from typing import Literal
+from typing import Literal, Self
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -19,6 +19,19 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = Field(default=None, validation_alias="GEMINI_API_KEY")
     anthropic_api_key: SecretStr | None = Field(default=None, validation_alias="ANTHROPIC_API_KEY")
     gemini_models: str = Field(default="gemini-3.5-flash-lite", validation_alias="GEMINI_MODELS")
+
+    def for_provider(self, provider: Literal["google_genai", "anthropic"]) -> Self:
+        """Same settings for another provider; a configured model ID only applies to its own."""
+        if provider == self.provider:
+            return self
+        return self.model_copy(update={"provider": provider, "model": None})
+
+    def available_providers(self) -> list[Literal["google_genai", "anthropic"]]:
+        keys: dict[Literal["google_genai", "anthropic"], SecretStr | None] = {
+            "google_genai": self.gemini_api_key,
+            "anthropic": self.anthropic_api_key,
+        }
+        return [p for p, key in keys.items() if key is not None and key.get_secret_value()]
 
     @property
     def model_name(self) -> str:

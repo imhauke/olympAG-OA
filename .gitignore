@@ -24,3 +24,7 @@ build/
 .claude/loop-log.jsonl
 # Case-study brief (not ours to publish)
 Olymp_Engineering_Case_Study.pdf
+.venv
+# Personal design-system sources (not part of this project)
+.impeccable/
+DESIGN.md

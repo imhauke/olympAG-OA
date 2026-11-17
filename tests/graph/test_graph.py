@@ -345,3 +345,44 @@ def test_graph_declares_its_real_shape() -> None:
         ("retry", "agent", False),
         ("save", "__end__", False),
     }
+
+
+def test_edits_and_finish_in_one_turn_save_a_model_call(tmp_path: Path, rich_docx: bytes) -> None:
+    """Optimization: a confident model edits and finishes in one turn (no extra round trip)."""
+    model = ScriptedModel(
+        responses=[
+            calls(
+                ("replace_text", {"old": "8h", "new": "7h"}),
+                ("finish", {"summary": "Sleep target updated."}),
+            )
+        ]
+    )
+    graph = build_graph(model, RunnableLambda(lambda _: ReviewDecision(approved=True, reason="OK")))
+    ctx = AgentContext(session=DocumentSession(rich_docx), output=tmp_path / "out.docx")
+    result = graph.invoke(
+        {"instruction": "8h to 7h"}, {"configurable": {"thread_id": "one-turn"}}, context=ctx
+    )
+    assert result["status"] == "saved"
+    assert result["summary"] == "Sleep target updated."
+    assert len(model.seen) == 1  # one editor call instead of two
+    assert check(rich_docx, ctx.output.read_bytes(), touched={"t0.r1.c1.p0"}).ok
+
+
+def test_same_turn_finish_is_cancelled_when_an_edit_fails(tmp_path: Path, rich_docx: bytes) -> None:
+    model = ScriptedModel(
+        responses=[
+            calls(("replace_text", {"old": "not in the document", "new": "x"}), ("finish", {})),
+            calls(("replace_text", {"old": "8h", "new": "7h"}), ("finish", {})),
+        ]
+    )
+    graph = build_graph(model, RunnableLambda(lambda _: ReviewDecision(approved=True, reason="OK")))
+    ctx = AgentContext(session=DocumentSession(rich_docx), output=tmp_path / "out.docx")
+    result = graph.invoke(
+        {"instruction": "8h to 7h"}, {"configurable": {"thread_id": "cancel"}}, context=ctx
+    )
+    assert result["status"] == "saved"
+    assert len(model.seen) == 2  # the failed edit was shown to the model before finishing
+    tool_text = " ".join(str(m.content) for m in result["messages"] if isinstance(m, ToolMessage))
+    assert "not_found" in tool_text
+    assert "finish_cancelled" in tool_text
+    assert [e.after for e in ctx.session.edits] == ["7h"]

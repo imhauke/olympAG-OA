@@ -9,7 +9,7 @@ flowchart TD
     Tools --> Agent
     Tools --> Clarify[interrupt]
     Clarify -->|Command resume| Agent
-    Tools -->|finish| Validate[Integrity and operation effects]
+    Tools -->|finish: alone or ending a successful batch| Validate[Integrity and operation effects]
     Validate -->|Pass| Review[Structured model review]
     Review -->|Approve| Save[Document and report]
     Validate -->|Fail with retries left| Reset[Reset original and append feedback]
@@ -30,7 +30,8 @@ override provider failures, clarification or the turn cap. SDK retries are disab
 | Addressing | Exact quotes, then normalized fallback (dashes, curly quotes, tabs/NBSP, soft hyphens). A fallback match writes back the document's own characters wherever the text is unchanged, so a typed '-' never retypes an en dash. Stable in-memory block IDs, inserted `n*` IDs, deleted tombstones; no IDs stamped into XML. |
 | Run editing | Trim unchanged context; separate changes around token anchors; prepare multi-span replacements in a copied XML context for atomic refusal. |
 | Styles | Apply an existing catalog style by changing only `w:pPr/w:pStyle`; other properties and runs remain protected. |
-| [`agent/`](../src/docx_agent/agent/) | Explicit StateGraph with declared conditional routes (the compiled graph's Mermaid view matches the diagram above; a test pins its edges), typed tools, no shell/code execution. Mutable `DocumentSession` in runtime context; append-only checkpointed messages. |
+| [`agent/`](../src/docx_agent/agent/) | Explicit StateGraph with declared conditional routes (the compiled graph's Mermaid view matches the diagram above; a test pins its edges), typed tools, no shell/code execution. Mutable `DocumentSession` in runtime context; append-only checkpointed messages. A turn may apply several edits and end with `finish` (one model round trip less); `finish` is cancelled if any earlier call in that turn failed, and `ask_clarification` must stand alone. |
+| [`web/`](../src/docx_agent/web/) | FastAPI + static HTML/CSS/JS (no build step). Jobs run the same graph in a worker thread; `stream_mode="updates"` drives the progress view, `interrupt()`/`Command(resume=...)` the inline question. Uploads are parsed in memory; results stay in memory for the 12 most recent jobs; history is metadata-only JSON. Localhost hardening: `127.0.0.1` bind, Host allow-list, custom header on mutating requests (no CORS). |
 | Validation/review | Deterministic checks establish integrity; a separate JSON-schema judge assesses intent using changes, original text and actual touched-block styles. |
 
 The session retains original bytes and per-operation receipts with before/after snapshots and

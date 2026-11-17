@@ -1,7 +1,10 @@
 # docx-agent
 
 Python/LangGraph agent for instruction-driven `.docx` edits: insert, replace, delete and apply
-existing paragraph styles while preserving unaffected content and formatting.
+existing paragraph styles while preserving unaffected content and formatting. Use it from a local
+web UI or the command line.
+
+![The local web UI after an edit: verified changes as a word-level diff, ready to download](docs/images/ui-result.png)
 
 [Deutsch](README.de.md) · [Architecture & integrity](docs/ARCHITECTURE.md) ·
 [AI development workflow](docs/DEVELOPMENT.md) · [Measured eval results](evals/baselines/2026-11-17-final.md)
@@ -15,23 +18,58 @@ by `.python-version`. Run from the repository root:
 uv sync --locked
 ```
 
-On macOS, keep the checkout outside iCloud: it can hide editable-install files and cause
-`ModuleNotFoundError`. Recreate `.venv` after moving; locally, prefix commands with `PYTHONPATH=src:.`.
+**macOS + iCloud (Desktop/Documents sync):** iCloud marks files in `.venv` as hidden and Python
+then skips the editable install (`ModuleNotFoundError: No module named 'docx_agent'`). Keep the
+checkout outside iCloud, or keep only the environment outside it:
+
+```sh
+rm -rf .venv
+UV_PROJECT_ENVIRONMENT="$HOME/.venvs/docx-agent" uv sync --locked
+ln -s "$HOME/.venvs/docx-agent" .venv
+```
 
 Use the privately supplied review `.env`, or copy `.env.example` to `.env` and set:
 
 ```dotenv
-GEMINI_API_KEY=your_key            # default provider (google_genai)
-ANTHROPIC_API_KEY=your_key         # optional: --provider anthropic (Claude Sonnet 5.5)
+GEMINI_API_KEY=your_key
+ANTHROPIC_API_KEY=your_key
 DOCX_AGENT_MAX_TURNS=5
 DOCX_AGENT_MAX_RETRIES=0
 ```
+
+`GEMINI_API_KEY` serves the default provider; `ANTHROPIC_API_KEY` enables Claude Sonnet 5.5.
 
 The review `.env` contains courtesy **Gemini and Anthropic** keys, supplied privately and valid
 for seven days from 2026-11-17 (until 2026-11-24); the owner revokes both at expiry. There is no
 application-side expiry. Afterward, use your own [Gemini](https://aistudio.google.com/apikey) or
 Anthropic key. Never commit `.env`. With Claude:
 `uv run docx-agent edit ... --provider anthropic` (defaults to `claude-sonnet-5-5`).
+
+### Web UI
+
+```sh
+uv run docx-agent ui
+```
+
+This starts the app on <http://127.0.0.1:8765> and opens it in your browser.
+
+Choose a `.docx` (or drop it), describe the change, pick **Gemini** or **Claude** (only models
+with a key in `.env` are offered) and press **Edit document** (⌘/Ctrl + Enter). Progress is shown
+live; if the agent needs to know which of several matches you mean, it asks inline and continues
+with your answer. The result lists every change as a word-level diff with its location, confirms
+the integrity check, and offers the edited document plus the JSON report for download. If the
+checks or the reviewer reject an edit, nothing is produced and the reason is shown.
+
+- Local only: the server binds `127.0.0.1`, rejects other `Host` headers and requires a UI header
+  on every request that starts work, so other websites cannot spend your API credit.
+- Documents are edited in memory and never written to disk; results stay available for the most
+  recent edits until the server stops.
+- **Recent documents** keeps only file name, instruction, model, outcome and time (never the
+  documents) in `~/.docx-agent/history.json`; move it with `DOCX_AGENT_HISTORY`, empty it with
+  **Clear**.
+- Options: `--port 8765`, `--no-open` (do not open a browser tab). Stop with Ctrl+C.
+
+### Command line
 
 ```sh
 mkdir -p out
@@ -60,7 +98,7 @@ input, instruction, actual Gemini output, diff and integrity/provenance reports.
 files to inspect their layout.
 
 `make check` = Ruff lint/format + strict source mypy + full pytest/coverage, also run in CI.
-Last gate: **277 tests, 99.37% source coverage** (minimum 85%). Without Make, run:
+Last gate: **296 tests, 98.58% source coverage** (minimum 85%). Without Make, run:
 
 ```sh
 uv run ruff check .
@@ -72,9 +110,10 @@ uv run pytest -q --cov --cov-report=term --cov-report=xml
 ## Interface and behavior
 
 ```text
+docx-agent ui [--port 8765] [--no-open]
 docx-agent inspect FILE.docx
 docx-agent edit INPUT.docx "instruction" -o OUTPUT.docx
-docx-agent verify BEFORE.docx AFTER.docx [--json]
+docx-agent verify BEFORE.docx AFTER.docx [--json] [--allow-removed image]
 ```
 
 - Quote paths/instructions containing spaces. Give the location, old text and replacement.
@@ -85,7 +124,8 @@ docx-agent verify BEFORE.docx AFTER.docx [--json]
   path; otherwise `result.docx` produces `result.report.json`.
 - `--model`/`--provider` override settings. Environment variables override `.env`. See
   `.env.example` and `uv run docx-agent edit --help` for options. Both providers are live-tested:
-  Gemini by the evals and samples, Claude Sonnet 5.5 by a smoke edit (`verify` OK). SDK retries are disabled; there is no provider fallback.
+  Gemini by the evals and samples, Claude Sonnet 5.5 by unseen live cases (`verify` OK). SDK
+  retries are disabled; there is no provider fallback.
 - Exit codes: 0 success; 1 failed checks/model call; 2 invalid input/configuration or I/O;
   3 non-interactive clarification.
 
@@ -94,6 +134,10 @@ docx-agent verify BEFORE.docx AFTER.docx [--json]
 Explicit `StateGraph`: load → agent/tools → validate → structured model review → save, with
 clarification interrupts and bounded reset/feedback loops. The mutable document is in runtime
 context; checkpointed messages are append-only. Tools expose document operations, no shell/code execution.
+A confident edit needs two model calls: one turn that applies all edits and ends with `finish`
+(cancelled automatically if any edit in that turn fails), plus the review. The web UI
+(`src/docx_agent/web/`, FastAPI + static HTML/CSS/JS, no build step) runs the same graph in a
+worker thread and streams node updates as progress; the CLI and UI share every check.
 
 Own `zipfile`/lxml operations reserialize only the main XML part. Unaffected part contents stay
 byte-identical **after decompression**; untouched blocks are compared by canonical XML. The
@@ -119,8 +163,8 @@ uv run python -m evals.run --live --max-calls 36 --retry-unavailable
 
 Six synthetic cases; hard shared call budget; optional single 503 resume per case inside that
 budget. GitHub evals are `workflow_dispatch` only. [Runner details](evals/README.md).
-Measured: first baseline **5/6**, then a prompt fix for the ambiguity case. Under the final
-prompt **all 6/6 cases passed** (35 Gemini calls, run case by case because the free tier allows
+Measured: first baseline **5/6**, then a prompt fix for the ambiguity case. With the prompt
+before the same-turn `finish` optimization **all 6/6 cases passed** (35 Gemini calls, run case by case because the free tier allows
 15 requests/minute; every non-pass was a provider 503). Each case passed once: not a measured
 pass rate. Nine further unseen instructions (add/remove/replace, link text, logo removal, an
 unsupported table, a German macOS-written `.docx`) were checked live on Gemini and Claude Sonnet

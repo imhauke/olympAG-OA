@@ -1,7 +1,10 @@
 # docx-agent
 
 Python/LangGraph-Agent für `.docx`-Bearbeitung per Anweisung: Einfügen, Ersetzen, Löschen und
-Anwenden vorhandener Absatzstile bei Erhalt unberührter Inhalte und Formatierungen.
+Anwenden vorhandener Absatzstile bei Erhalt unberührter Inhalte und Formatierungen. Nutzbar über
+eine lokale Web-Oberfläche oder die Kommandozeile.
+
+![Die lokale Web-Oberfläche nach einer Bearbeitung: geprüfte Änderungen als Wort-Diff, bereit zum Download](docs/images/ui-result.png)
 
 [English](README.md) · [Architektur & Integrität](docs/ARCHITECTURE.md) ·
 [KI-Entwicklungsprozess](docs/DEVELOPMENT.md) · [Gemessene Evaluation](evals/baselines/2026-11-17-final.md)
@@ -15,23 +18,58 @@ Python 3.12. Alle Befehle im Repository-Hauptverzeichnis ausführen:
 uv sync --locked
 ```
 
-Unter macOS außerhalb von iCloud arbeiten: Versteckte Dateien der editierbaren Installation können
-`ModuleNotFoundError` auslösen. Nach einem Umzug `.venv` neu erstellen; lokal hilft `PYTHONPATH=src:.` vor dem Befehl.
+**macOS + iCloud (Schreibtisch/Dokumente-Sync):** iCloud markiert Dateien in `.venv` als versteckt;
+Python überspringt dann die editierbare Installation (`ModuleNotFoundError: No module named
+'docx_agent'`). Projekt außerhalb von iCloud ablegen oder nur die Umgebung auslagern:
+
+```sh
+rm -rf .venv
+UV_PROJECT_ENVIRONMENT="$HOME/.venvs/docx-agent" uv sync --locked
+ln -s "$HOME/.venvs/docx-agent" .venv
+```
 
 Privat bereitgestellte Review-`.env` verwenden oder `.env.example` nach `.env` kopieren und setzen:
 
 ```dotenv
-GEMINI_API_KEY=your_key            # Standard-Anbieter (google_genai)
-ANTHROPIC_API_KEY=your_key         # optional: --provider anthropic (Claude Sonnet 5.5)
+GEMINI_API_KEY=your_key
+ANTHROPIC_API_KEY=your_key
 DOCX_AGENT_MAX_TURNS=5
 DOCX_AGENT_MAX_RETRIES=0
 ```
+
+`GEMINI_API_KEY` bedient den Standard-Anbieter; `ANTHROPIC_API_KEY` aktiviert Claude Sonnet 5.5.
 
 Die Review-`.env` enthält Test-Schlüssel für **Gemini und Anthropic**, privat bereitgestellt und
 sieben Tage ab dem 2026-11-17 gültig (bis 2026-11-24); der Inhaber widerruft beide danach. Keine
 automatische Abschaltung durch die Anwendung. Anschließend eigene
 [Gemini](https://aistudio.google.com/apikey)- oder Anthropic-Schlüssel verwenden. `.env` niemals
 committen. Mit Claude: `uv run docx-agent edit ... --provider anthropic` (Standard: `claude-sonnet-5-5`).
+
+### Web-Oberfläche
+
+```sh
+uv run docx-agent ui
+```
+
+Startet die App auf <http://127.0.0.1:8765> und öffnet sie im Browser.
+
+`.docx` wählen (oder hineinziehen), Änderung beschreiben, **Gemini** oder **Claude** wählen (nur
+Modelle mit Schlüssel in `.env` werden angeboten) und **Edit document** drücken (⌘/Strg + Enter).
+Der Fortschritt wird live angezeigt; bei mehrdeutigen Stellen fragt der Agent direkt nach und
+arbeitet mit der Antwort weiter. Das Ergebnis zeigt jede Änderung als Wort-Diff mit Fundstelle,
+bestätigt die Integritätsprüfung und bietet das bearbeitete Dokument sowie den JSON-Bericht zum
+Download. Lehnen Prüfung oder Review ab, entsteht keine Datei und der Grund wird angezeigt.
+
+- Nur lokal: Der Server bindet an `127.0.0.1`, lehnt fremde `Host`-Header ab und verlangt bei
+  arbeitsauslösenden Anfragen einen UI-Header, damit andere Websites kein API-Guthaben verbrauchen.
+- Dokumente werden im Speicher bearbeitet und nie auf die Festplatte geschrieben; Ergebnisse der
+  letzten Bearbeitungen bleiben bis zum Beenden des Servers abrufbar.
+- **Recent documents** speichert nur Dateiname, Anweisung, Modell, Ergebnis und Zeit (nie die
+  Dokumente) in `~/.docx-agent/history.json`; verschieben mit `DOCX_AGENT_HISTORY`, leeren mit
+  **Clear**.
+- Optionen: `--port 8765`, `--no-open` (kein Browser-Tab). Beenden mit Strg+C.
+
+### Kommandozeile
 
 ```sh
 mkdir -p out
@@ -62,7 +100,7 @@ enthalten Eingabe, Anweisung, echte Gemini-Ausgabe, Diff und Integritäts-/Herku
 Das Layout lässt sich durch Öffnen der Word-Dateien prüfen.
 
 `make check` = Ruff-Lint/Format + striktes Quellcode-mypy + vollständige pytest-/Coverage-Prüfung,
-ebenso in CI. Letzter Lauf: **277 Tests, 99,37 % Quellcodeabdeckung** (Mindestwert 85 %).
+ebenso in CI. Letzter Lauf: **296 Tests, 98,58 % Quellcodeabdeckung** (Mindestwert 85 %).
 Ohne Make:
 
 ```sh
@@ -75,9 +113,10 @@ uv run pytest -q --cov --cov-report=term --cov-report=xml
 ## Schnittstelle und Verhalten
 
 ```text
+docx-agent ui [--port 8765] [--no-open]
 docx-agent inspect FILE.docx
 docx-agent edit INPUT.docx "instruction" -o OUTPUT.docx
-docx-agent verify BEFORE.docx AFTER.docx [--json]
+docx-agent verify BEFORE.docx AFTER.docx [--json] [--allow-removed image]
 ```
 
 - Pfade/Anweisungen mit Leerzeichen in Anführungszeichen setzen. Ort, alten und neuen Text nennen.
@@ -98,7 +137,11 @@ docx-agent verify BEFORE.docx AFTER.docx [--json]
 Expliziter `StateGraph`: Laden → Agent/Werkzeuge → Validierung → strukturierte Modellbewertung
 → Speichern, mit Rückfrage-Unterbrechungen und begrenzten Zurücksetzungen. Das Dokument liegt
 im Laufzeitkontext; Nachrichten werden nur angehängt. Werkzeuge erlauben Dokumentoperationen,
-keine Shell-/Codeausführung.
+keine Shell-/Codeausführung. Eine sichere Bearbeitung braucht zwei Modellaufrufe: einen Zug, der
+alle Änderungen anwendet und mit `finish` endet (automatisch abgebrochen, wenn eine Änderung darin
+scheitert), plus das Review. Die Web-Oberfläche (`src/docx_agent/web/`, FastAPI + statisches
+HTML/CSS/JS ohne Build-Schritt) führt denselben Graphen in einem Worker-Thread aus und zeigt
+Knoten-Updates als Fortschritt; CLI und UI nutzen dieselben Prüfungen.
 
 Eigene `zipfile`/lxml-Operationen serialisieren nur den Haupt-XML-Teil neu. Unberührte
 Paketbestandteile bleiben **nach Dekompression** bytegleich; unberührte Blöcke werden per
@@ -126,8 +169,8 @@ uv run python -m evals.run --live --max-calls 36 --retry-unavailable
 
 Sechs synthetische Fälle; hartes gemeinsames Aufruflimit; optional eine 503-Wiederholung je Fall
 innerhalb dieses Limits. GitHub-Evals nur per `workflow_dispatch`.
-[Runner-Details](evals/README.md). Gemessen: erste Baseline **5/6**, danach Prompt-Korrektur für den Mehrdeutigkeitsfall. Mit dem
-finalen Prompt **bestanden alle 6/6 Fälle** (35 Gemini-Aufrufe, fallweise ausgeführt, da der
+[Runner-Details](evals/README.md). Gemessen: erste Baseline **5/6**, danach Prompt-Korrektur für den Mehrdeutigkeitsfall. Mit dem Prompt vor
+der `finish`-Optimierung im selben Zug **bestanden alle 6/6 Fälle** (35 Gemini-Aufrufe, fallweise ausgeführt, da der
 Free Tier 15 Anfragen/Minute erlaubt; jeder Fehlschlag war ein Provider-503). Jeder Fall
 bestand einmal: keine gemessene Erfolgsquote. Neun weitere unbekannte Anweisungen (Hinzufügen,
 Entfernen, Ersetzen, Linktext, Logo, nicht unterstützte Tabelle, deutsches macOS-`.docx`) wurden

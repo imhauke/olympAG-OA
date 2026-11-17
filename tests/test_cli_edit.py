@@ -180,3 +180,27 @@ def test_input_hardlink_rejected(paths, monkeypatch: pytest.MonkeyPatch) -> None
     result = runner.invoke(cli.app, ["edit", str(source), "Change sleep", "-o", str(output)])
     assert result.exit_code == 2
     assert source.read_bytes() == original
+
+
+def test_ui_command_binds_localhost_and_opens_browser(monkeypatch: pytest.MonkeyPatch) -> None:
+    started: dict[str, object] = {}
+    monkeypatch.setattr(cli.uvicorn, "run", lambda app, **kw: started.update(kw, app=app))
+    opened: list[object] = []
+
+    class Timer:
+        def __init__(self, delay: float, fn: object, args: tuple[str]) -> None:
+            opened.append(args[0])
+
+        def start(self) -> None:
+            pass
+
+    monkeypatch.setattr(cli.threading, "Timer", Timer)
+    monkeypatch.setattr(cli, "Settings", lambda: Settings(_env_file=None, GEMINI_API_KEY=""))
+    result = runner.invoke(cli.app, ["ui", "--port", "9123"])
+    assert result.exit_code == 0, result.output
+    assert started["host"] == "127.0.0.1"
+    assert started["port"] == 9123
+    assert opened == ["http://127.0.0.1:9123"]
+    assert "no GEMINI_API_KEY or ANTHROPIC_API_KEY" in result.stderr
+    assert runner.invoke(cli.app, ["ui", "--no-open"]).exit_code == 0
+    assert len(opened) == 1

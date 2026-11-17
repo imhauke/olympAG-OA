@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f3">
+  <title>docx-agent</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7.2' fill='%23121316'/%3E%3Cpath d='M10 7.5h8l4.5 4.5v12.5H10z' fill='none' stroke='%23fff' stroke-width='1.75' stroke-linejoin='round'/%3E%3Cpath d='M13.5 16.5v5' stroke='%238db4ff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preload" href="/static/fonts/MonaSans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/app.css">
+  <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+  <svg width="0" height="0" class="sprite" aria-hidden="true">
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6.5 3.5h7L18 8v12.5H6.5z"/><path d="M13.5 3.5V8H18"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4.5v10.5m0 0-4.25-4.25M12 15l4.25-4.25M5.5 19.5h13"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m6.5 12.5 3.5 3.5 7.5-8"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M7.5 7.5l9 9m0-9-9 9"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M7.5 16.5 16.5 7.5M9 7.5h7.5V15"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M9.5 7 5 11.5 9.5 16"/><path d="M5.5 11.5H14a4.5 4.5 0 0 1 0 9h-2"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.75v5"/><path d="M12 16.25h.01"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15.5V5m0 0L7.75 9.25M12 5l4.25 4.25M5.5 19.5h13"/></symbol>
+  </svg>
+
+  <main class="page">
+    <header class="masthead">
+      <div class="tile" aria-hidden="true">
+        <svg class="glyph"><use href="#i-doc"/></svg>
+        <span class="tile-caret"></span>
+      </div>
+      <h1>docx-agent</h1>
+      <p class="lede">Describe a change to a Word document. Everything you didn’t ask to change stays exactly as it was.</p>
+    </header>
+
+    <section class="window" aria-labelledby="window-title">
+      <div class="window-bar">
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="window-title" id="window-title">New edit</span>
+      </div>
+
+      <!-- Compose -->
+      <form class="view" id="view-compose" novalidate>
+        <div class="field-group">
+          <span class="label" id="file-label">Document</span>
+          <label class="drop" id="drop" aria-labelledby="file-label">
+            <input id="file" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="visually-hidden">
+            <span class="drop-empty">
+              <span class="drop-icon" aria-hidden="true"><svg class="glyph"><use href="#i-upload"/></svg></span>
+              <span class="drop-text"><strong>Choose a .docx file</strong><span>or drop it here · up to <span id="max-mb">25</span> MB</span></span>
+            </span>
+            <span class="drop-file" hidden>
+              <span class="file-tile" aria-hidden="true"><svg class="glyph"><use href="#i-doc"/></svg></span>
+              <span class="file-meta"><strong id="file-name"></strong><span id="file-size"></span></span>
+              <span class="action-link small" aria-hidden="true">Change</span>
+            </span>
+          </label>
+          <p class="field-error" id="file-error" role="alert" hidden></p>
+        </div>
+
+        <div class="field-group">
+          <label class="label" for="instruction">What should change?</label>
+          <div class="field">
+            <textarea id="instruction" rows="3" maxlength="4000" placeholder="e.g. Change the session date to 19 March 2026 and remove the bullet about breathing exercises."></textarea>
+          </div>
+          <div class="examples" aria-label="Example instructions">
+            <button type="button" class="example">Change the date to 19 March 2026</button>
+            <button type="button" class="example">Remove the second bullet point</button>
+            <button type="button" class="example">Replace “Max Mustermann” with “Erika Musterfrau” everywhere</button>
+          </div>
+        </div>
+
+        <div class="compose-foot">
+          <div class="model" id="model-picker">
+            <span class="label" id="model-label">Model</span>
+            <div class="segmented" role="radiogroup" aria-labelledby="model-label" id="providers"></div>
+            <span class="caption" id="model-id"></span>
+          </div>
+          <div class="submit">
+            <span class="caption kbd-hint" aria-hidden="true">⌘ Enter</span>
+            <button class="action-primary" id="submit" type="submit" disabled>Edit document <svg class="glyph"><use href="#i-chevron"/></svg></button>
+          </div>
+        </div>
+        <p class="field-error" id="submit-error" role="alert" hidden></p>
+      </form>
+
+      <!-- Working -->
+      <section class="view" id="view-working" hidden aria-labelledby="working-title">
+        <div class="job-head">
+          <span class="file-tile" aria-hidden="true"><svg class="glyph"><use href="#i-doc"/></svg></span>
+          <div>
+            <h2 class="job-title" id="working-title" tabindex="-1"></h2>
+            <p class="job-instruction" id="working-instruction"></p>
+          </div>
+        </div>
+        <ol class="steps" id="steps" role="status" aria-live="polite"></ol>
+        <p class="caption elapsed" id="elapsed"></p>
+      </section>
+
+      <!-- Question -->
+      <form class="view" id="view-question" hidden novalidate aria-labelledby="question-title">
+        <div class="ask">
+          <h2 class="ask-title" id="question-title" tabindex="-1">One question before editing</h2>
+          <p class="ask-text" id="question-text"></p>
+        </div>
+        <div class="field-group">
+          <label class="label" for="answer">Your answer</label>
+          <div class="field"><textarea id="answer" rows="2" maxlength="4000"></textarea></div>
+        </div>
+        <div class="actions">
+          <button class="action-primary" type="submit" id="answer-submit">Send answer <svg class="glyph"><use href="#i-chevron"/></svg></button>
+          <button class="action-text" type="button" data-action="restart">Cancel</button>
+        </div>
+        <p class="field-error" id="answer-error" role="alert" hidden></p>
+      </form>
+
+      <!-- Result -->
+      <section class="view" id="view-result" hidden aria-labelledby="result-title">
+        <p class="receipt"><span class="live-dot" aria-hidden="true"></span>Saved and verified</p>
+        <h2 class="result-title" id="result-title" tabindex="-1"></h2>
+        <p class="result-summary" id="result-summary"></p>
+        <dl class="meta" id="result-meta"></dl>
+        <h3 class="section-label">Changes</h3>
+        <ol class="changes" id="changes"></ol>
+        <div class="actions">
+          <a class="action-primary" id="download" href="#" download>Download edited document <svg class="glyph"><use href="#i-download"/></svg></a>
+          <button class="action-text" type="button" data-action="restart"><svg class="glyph"><use href="#i-back"/></svg>Edit another document</button>
+        </div>
+      </section>
+
+      <!-- Not saved (agent declined / checks rejected) and errors -->
+      <section class="view" id="view-failed" hidden aria-labelledby="failed-title">
+        <p class="notice"><svg class="glyph"><use href="#i-alert"/></svg><span id="failed-kind">Nothing was saved</span></p>
+        <h2 class="result-title" id="failed-title" tabindex="-1"></h2>
+        <p class="result-summary" id="failed-message"></p>
+        <ul class="violations" id="violations" hidden></ul>
+        <p class="caption">Your original file was not modified.</p>
+        <div class="actions">
+          <button class="action-primary" type="button" data-action="retry">Try again <svg class="glyph"><use href="#i-chevron"/></svg></button>
+          <button class="action-text" type="button" data-action="restart"><svg class="glyph"><use href="#i-back"/></svg>Start over</button>
+        </div>
+      </section>
+    </section>
+
+    <section class="history" aria-labelledby="history-title">
+      <div class="history-head">
+        <h2 id="history-title">Recent documents</h2>
+        <button class="action-text small" type="button" id="history-clear" hidden>Clear</button>
+      </div>
+      <ol class="history-list" id="history-list"></ol>
+      <p class="caption" id="history-empty">Documents you edit appear here. Only the file name and your instruction are kept, never the documents.</p>
+    </section>
+
+    <footer class="foot caption">
+      <span>Runs locally. Files are edited in memory and never stored.</span>
+      <span id="version"></span>
+    </footer>
+  </main>
+</body>
+</html>

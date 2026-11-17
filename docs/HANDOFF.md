@@ -5,13 +5,20 @@ Continue only on `main`; the human stages/commits/pushes. No live calls without 
 
 ## Current state
 
-- CLI: `inspect`, `edit`, `verify`; explicit LangGraph with clarification, validation, review,
+- CLI: `ui`, `inspect`, `edit`, `verify`; explicit LangGraph with clarification, validation, review,
   bounded reset/feedback and separate output/report publication.
+- Local web UI (`uv run docx-agent ui`, `src/docx_agent/web/`): upload, instruction, live progress,
+  inline clarification, word-level diff, download of document + report, metadata-only history in
+  `~/.docx-agent/history.json`. Rendered and checked in headless Chrome with a scripted model;
+  **not yet exercised against live models by the human** (pending feedback).
+- Speed/cost: an edit may end with `finish` in the same turn (2 model calls for a confident edit
+  instead of 3). Offline graph tests cover it; **live evals predate this change** and should be
+  rerun (`evals/README.md`) before quoting final-version numbers.
 - Native Gemini `gemini-3.5-flash-lite`, medium thinking, tested live. Claude Sonnet 5.5 (`--provider anthropic`) passed a live smoke edit (verify OK) on 2026-11-17.
-- Three real synthetic sample outputs. Eval evidence: first baseline 5/6 + targeted 1/1; final prompt
-  6/6 (each case passed once, run case by case on the free tier). See
+- Three real synthetic sample outputs. Eval evidence: first baseline 5/6 + targeted 1/1; prompt before the same-turn finish
+  optimization 6/6 (each case passed once, run case by case on the free tier). See
   [final](../evals/baselines/2026-11-17-final.md) and [first](../evals/baselines/2026-11-17.md) baselines.
-- Last gate: `HYPOTHESIS_PROFILE=ci make check` — 277 tests, 99.37% source coverage.
+- Last gate: `HYPOTHESIS_PROFILE=ci make check` — 296 tests, 98.58% source coverage.
   Passed on macOS and a clean Linux container with locked dependencies; original CI failure reproduced.
   Cleanup verification also passed sample reproducibility, CLI integrity and eval plan (no live calls).
 - This cleanup removes tracked coverage conflict copies, the case-study PDF from the deliverable,
@@ -38,6 +45,7 @@ Ambiguity policy is prompt-based; a model can still guess. Checkpoints resume on
 out of fixtures. Courtesy Gemini and Anthropic keys last seven days from 2026-11-17 (until 2026-11-24); the
 owner must actually revoke both review keys. No application expiry/scheduler exists.
 
-Known local issue: iCloud can hide editable-install `.pth` files. Keep the checkout outside
-cloud sync; `PYTHONPATH=src:. uv run ...` is a local workaround. Moving a venv requires reinstalling.
+Known local issue: iCloud (File Provider) hides editable-install `.pth` files and ignores
+`.nosync`. On this machine `.venv` is a symlink to `~/.venvs/olympag-oa` (created with
+`UV_PROJECT_ENVIRONMENT`), outside iCloud; see README. Moving a venv requires reinstalling.
 Remote evals are manual-only; no agent dispatch or further model calls are needed for delivery.

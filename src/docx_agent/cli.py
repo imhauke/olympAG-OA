@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import json
+import threading
+import webbrowser
 from pathlib import Path
 from typing import Annotated, Literal
 from uuid import uuid4
 
 import typer
+import uvicorn
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
 from docx_agent import __version__
-from docx_agent.agent.graph import AgentContext, AgentError, build_graph
+from docx_agent.agent.graph import AgentContext, AgentError, build_graph, root_cause
 from docx_agent.agent.models import Settings, create_model
 from docx_agent.agent.session import DocumentSession
 from docx_agent.document.blocks import BlockIndex
@@ -21,6 +24,7 @@ from docx_agent.document.integrity import IntegrityReport, check
 from docx_agent.document.package import DocxPackage, PackageError
 from docx_agent.document.styles import StyleCatalog
 from docx_agent.document.view import render
+from docx_agent.web.app import create_app
 
 app = typer.Typer(
     name="docx-agent",
@@ -110,19 +114,6 @@ def verify(
         raise typer.Exit(1)
 
 
-def _root_cause(exc: BaseException) -> str:
-    """Name the innermost cause (e.g. a provider 429/503) so failures are actionable."""
-    cause = exc
-    while cause.__cause__ is not None:
-        cause = cause.__cause__
-    if cause is exc:
-        return ""
-    message = " ".join(str(cause).split())
-    if len(message) > 300:
-        message = message[:297] + "..."
-    return f" Cause: {type(cause).__name__}: {message}"
-
-
 @app.command()
 def edit(
     path: DocxPath,
@@ -194,13 +185,34 @@ def edit(
     except (PackageError, OSError, ValueError) as exc:
         raise _fail(str(exc)) from exc
     except AgentError as exc:
-        typer.echo(f"error: {exc}{_root_cause(exc)}", err=True)
+        typer.echo(f"error: {exc}{root_cause(exc)}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"{state['status']}: {state.get('reason', '')}")
     if state.get("integrity"):
         typer.echo(json.dumps(state["integrity"], ensure_ascii=False, indent=2))
     if state["status"] in {"failed", "forced"}:
         raise typer.Exit(1)
+
+
+@app.command()
+def ui(
+    port: Annotated[int, typer.Option(help="Local port.")] = 8765,
+    open_browser: Annotated[
+        bool, typer.Option("--open/--no-open", help="Open a browser tab.")
+    ] = True,
+) -> None:
+    """Start the local web UI on http://127.0.0.1:PORT (never exposed beyond this machine)."""
+    settings = Settings()
+    if not settings.available_providers():
+        typer.echo(
+            "warning: no GEMINI_API_KEY or ANTHROPIC_API_KEY found; edits will be disabled.",
+            err=True,
+        )
+    url = f"http://127.0.0.1:{port}"
+    typer.echo(f"docx-agent UI on {url}  (Ctrl+C to stop)")
+    if open_browser:
+        threading.Timer(1.0, webbrowser.open, args=(url,)).start()
+    uvicorn.run(create_app(), host="127.0.0.1", port=port, log_level="warning")
 
 
 if __name__ == "__main__":  # pragma: no cover

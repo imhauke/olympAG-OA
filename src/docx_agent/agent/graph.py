@@ -31,6 +31,19 @@ class AgentError(RuntimeError):
     """Model or workflow failure; no document has been saved."""
 
 
+def root_cause(exc: BaseException) -> str:
+    """' Cause: Type: message' for the innermost cause (e.g. a provider 503), or ''."""
+    cause = exc
+    while cause.__cause__ is not None:
+        cause = cause.__cause__
+    if cause is exc:
+        return ""
+    message = " ".join(str(cause).split())
+    if len(message) > 300:
+        message = message[:297] + "..."
+    return f" Cause: {type(cause).__name__}: {message}"
+
+
 class ReviewDecision(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     approved: bool
@@ -142,26 +155,57 @@ class _Nodes:
         response = state["messages"][-1]
         assert isinstance(response, AIMessage)
         bound = {t.name: t for t in make_tools(runtime.context.session)}
+        tool_calls = response.tool_calls
+        names = [c["name"] for c in tool_calls]
         messages: list[BaseMessage] = []
         updates: AgentState = {"next": "agent"}
-        control = any(c["name"] in {"finish", "ask_clarification"} for c in response.tool_calls)
-        for call in response.tool_calls:
-            if control and len(response.tool_calls) != 1:
-                content = json.dumps(
-                    {"error": "invalid_args", "message": "Call finish or ask_clarification alone."}
-                )
-            else:
-                content = invoke_tool(bound, call["name"], call["args"])
-                if call["name"] in {"finish", "ask_clarification"}:
-                    data = json.loads(content)
-                    if "error" not in data:
-                        if call["name"] == "finish":
-                            updates.update({"next": "validate", "summary": data["summary"]})
-                        else:
-                            updates.update({"next": "clarify", "question": data["question"]})
+
+        def reply(call: Any, content: str) -> None:
             messages.append(
                 ToolMessage(content=content, tool_call_id=call["id"], name=call["name"])
             )
+
+        # Batches run in order. finish may close a batch of edits (saving a model round trip);
+        # ask_clarification must stand alone. A malformed batch runs nothing.
+        malformed = ("ask_clarification" in names and len(names) != 1) or (
+            "finish" in names and (names.count("finish") != 1 or names[-1] != "finish")
+        )
+        if malformed:
+            error = json.dumps(
+                {
+                    "error": "invalid_args",
+                    "message": "Call ask_clarification alone; finish may only be the last call "
+                    "of a turn. Nothing in this turn was executed.",
+                }
+            )
+            for call in tool_calls:
+                reply(call, error)
+            updates["messages"] = messages
+            return updates
+
+        failed = 0
+        for call in tool_calls:
+            if call["name"] == "finish" and failed:
+                reply(
+                    call,
+                    json.dumps(
+                        {
+                            "error": "finish_cancelled",
+                            "message": f"{failed} earlier call(s) in this turn failed. Fix them "
+                            "(see their results), then call finish.",
+                        }
+                    ),
+                )
+                continue
+            content = invoke_tool(bound, call["name"], call["args"])
+            reply(call, content)
+            data = json.loads(content) if content.startswith("{") else None
+            if isinstance(data, dict) and "error" in data:
+                failed += 1
+            elif call["name"] == "finish" and isinstance(data, dict):
+                updates.update({"next": "validate", "summary": data["summary"]})
+            elif call["name"] == "ask_clarification" and isinstance(data, dict):
+                updates.update({"next": "clarify", "question": data["question"]})
         updates["messages"] = messages
         return updates
 

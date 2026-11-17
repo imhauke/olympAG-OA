@@ -122,7 +122,11 @@ def make_tools(session: DocumentSession) -> list[BaseTool]:
 
     @tool
     def finish(summary: str = "") -> str:
-        """Submit edits for validation and review. Call alone, after all requested edits."""
+        """Submit edits for validation and review.
+
+        Call it last, in the same turn as edits you are confident about, or alone. If any
+        earlier call in that turn fails, finish is cancelled so you can fix the edit first.
+        """
         return json.dumps({"summary": summary})
 
     return [

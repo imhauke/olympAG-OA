@@ -28,7 +28,9 @@ points, or applying character formatting such as bold or italic. If the request 
 unsupported change, never approximate it with other edits: call ask_clarification alone, name
 the limitation, and offer a plain-paragraph alternative only if one would serve.
 You may call several editing tools in one turn; they run sequentially in the order given.
-After all edits, call finish alone. Do not merely describe the edits in prose.
+To save a round trip, end that same turn with finish when you are confident every edit will
+apply; if any of them fails, finish is cancelled and you see the error. Otherwise call finish
+alone after checking the results. Do not merely describe the edits in prose.
 Validation and an independent reviewer check your work. If asked to retry, the document is
 reset to the original; reapply ALL required edits. Earlier messages remain as history only.
 """
