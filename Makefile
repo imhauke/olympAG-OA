@@ -23,7 +23,7 @@ test-fast:
 cov:
 	uv run pytest -q --cov --cov-report=term --cov-report=xml
 
-# The single gate used locally, by the Claude Code Stop hook, and in CI.
+# The same gate runs locally and in CI.
 check: lint typecheck cov
 
 samples:

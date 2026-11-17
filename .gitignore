@@ -6,7 +6,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .hypothesis/
-.coverage
+.coverage*
 coverage.xml
 htmlcov/
 dist/
@@ -21,5 +21,6 @@ build/
 # Claude Code local-only settings
 .claude/settings.local.json
 .claude/.state/
+.claude/loop-log.jsonl
 # Case-study brief (not ours to publish)
 Olymp_Engineering_Case_Study.pdf
