@@ -50,8 +50,7 @@ Style edits use exact `style_changes` permissions; standalone `verify` has no st
 Ambiguity policy is prompt-based; a model can still guess. Checkpoints resume only in-process.
 
 `.env`, `.venv`, caches, `out/`, `documents/*` and raw eval reports are local and ignored. Keep
-private documents out of fixtures. Personal design sources (`.impeccable/`, `DESIGN.md`) are
-ignored on purpose. Courtesy Gemini and Anthropic keys last seven days from 2026-11-17 (until
+private documents out of fixtures. Courtesy Gemini and Anthropic keys last seven days from 2026-11-17 (until
 2026-11-24); the owner must actually revoke both. No application expiry or scheduler exists.
 
 Known local issue: iCloud (File Provider) hides editable-install `.pth` files and ignores
