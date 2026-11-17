@@ -34,4 +34,4 @@ samples-check:
 	uv run pytest -q tests/test_samples.py
 
 eval:
-	uv run python -m evals.run
+	uv run python -m evals.run $(EVAL_ARGS)

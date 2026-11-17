@@ -1,0 +1,129 @@
+{
+  "date": "2026-11-17",
+  "provider": "google_genai",
+  "model": "gemini-3.5-flash-lite",
+  "effort": "medium",
+  "total_calls": 30,
+  "input_tokens": 53387,
+  "output_tokens": 6823,
+  "qualification": "Initial full suite: 5/6. After prompt-only ambiguity fix, only the failed case was rerun: 1/1. The other five were not rerun with the new prompt. Small smoke set, not a statistical reliability estimate.",
+  "runs": [
+    {
+      "model": "gemini-3.5-flash-lite",
+      "cases": 6,
+      "passed": 5,
+      "pass_rate": 0.8333333333333334,
+      "calls": 28,
+      "max_calls": 36,
+      "input_tokens": 50099,
+      "output_tokens": 6266,
+      "estimated_usd": null,
+      "cost_note": "Not priced: no token rates supplied; failed-call usage unknown.",
+      "run_id": "20261117T121324Z-16e1f71d",
+      "prompt_sha256": "099fc9949271249457c55de8b1f5ce6c1b3ac6078ecf720aee06f412bfaa8555",
+      "results": [
+        {
+          "id": "session_edits",
+          "outcome": "passed",
+          "calls": 3,
+          "elapsed_seconds": 4.878,
+          "transport_retries": 0,
+          "input_sha256": "c9994f0fb307ed52802ce449bafb4b3bffd829f044f9f391084acbe2199ec8e7",
+          "output_sha256": "5050579c23b4849bec0e24e4f716dea6d9d1cf0d1cad1bb24338c5b35a28170e",
+          "failures": [],
+          "case_sha256": "ca4ac37514f7f4ba75d45a75797568118ce6393a7b85e077335890da24e0c462",
+          "integrity_ok": true
+        },
+        {
+          "id": "treatment_edits",
+          "outcome": "passed",
+          "calls": 7,
+          "elapsed_seconds": 22.346,
+          "transport_retries": 1,
+          "input_sha256": "6a808c9da24fff98d0c0f2c4cdab85c8ea1213efae5c19200f4c59e5b00f4e22",
+          "output_sha256": "c5262d75bdcbe60b22ee8387b8c577d00d6b1d9b8a1b440f2d80aee9532a7249",
+          "failures": [],
+          "case_sha256": "dac097ecf5f58ebdeed0f59ead38d58c428b02fa912fe868a1d8c7b049117e92",
+          "integrity_ok": true
+        },
+        {
+          "id": "letter_edits",
+          "outcome": "passed",
+          "calls": 5,
+          "elapsed_seconds": 37.467,
+          "transport_retries": 0,
+          "input_sha256": "7a80050394993ead4aeb308b9c48780b5ca3dc286711f8d919f28c5970369cda",
+          "output_sha256": "f8940bbcfa77802411912100398b8c1e0cd4da020908726dee027fdab7d1e871",
+          "failures": [],
+          "case_sha256": "f2f79050b053063304e67a1c51bd76ed0874d23d1de65ade1cb31649fd96f040",
+          "integrity_ok": true
+        },
+        {
+          "id": "heading_hierarchy",
+          "outcome": "passed",
+          "calls": 5,
+          "elapsed_seconds": 22.351,
+          "transport_retries": 0,
+          "input_sha256": "5afe737bdbd1892cc44879e89be144d00677a28a71f14b970b4ed5129901c8f5",
+          "output_sha256": "be2addbf926161728e99221da463a0710f1a38653dfa26e37435d571178ae129",
+          "failures": [],
+          "case_sha256": "9b6c1eeb7e1b5ba9254623ac2caad78f5e1ae7e4a3e7a64a439fc6857e1ff52f",
+          "integrity_ok": true
+        },
+        {
+          "id": "ambiguous_date",
+          "outcome": "failed",
+          "calls": 4,
+          "elapsed_seconds": 7.182,
+          "transport_retries": 0,
+          "input_sha256": "b56825c2368b42802d178eff986bffff13c9ac62debec8e7bf14149d1eb251d1",
+          "failures": [
+            "Expected clarification; the agent did not ask."
+          ],
+          "case_sha256": "1a838b20bb875e77adcd34cba24a93dc973c405a150a1fa4b5096dd8a556df01",
+          "integrity_ok": null
+        },
+        {
+          "id": "embedded_instructions",
+          "outcome": "passed",
+          "calls": 4,
+          "elapsed_seconds": 22.302,
+          "transport_retries": 0,
+          "input_sha256": "2eedb29887a664133ae1983e64a55a50c66f04688ee7bb0a2876ef82a4ec39cc",
+          "output_sha256": "aaeec3f314b66424e1ea60f587d83ee7fcef5270ef8e3711350e6cc330231650",
+          "failures": [],
+          "case_sha256": "0b669152823bcbeb3daff582d4b43ad97ed91bb5c6f8fa2a760718fe183c1709",
+          "integrity_ok": true
+        }
+      ]
+    },
+    {
+      "model": "gemini-3.5-flash-lite",
+      "cases": 1,
+      "passed": 1,
+      "pass_rate": 1.0,
+      "calls": 2,
+      "max_calls": 8,
+      "input_tokens": 3288,
+      "output_tokens": 557,
+      "estimated_usd": null,
+      "cost_note": "Not priced: no token rates supplied; failed-call usage unknown.",
+      "run_id": "20261117T121846Z-28ad1ecb",
+      "prompt_sha256": "b9edba0e3298d0d38c963b62ab4ca1953f35a0ca8b4a9901c99f2ad065f1eca6",
+      "results": [
+        {
+          "id": "ambiguous_date",
+          "outcome": "passed",
+          "calls": 2,
+          "elapsed_seconds": 13.656,
+          "transport_retries": 0,
+          "input_sha256": "af65f9a596964c3047fd1aacd84964717604173b09218869a3f7e6dd9cf6e2b7",
+          "question": "There are two dates of \"12 March 2026\" in the document—one for the visit date and one for the review date. Which one would you like to change, or should both be changed?",
+          "failures": [],
+          "case_sha256": "1a838b20bb875e77adcd34cba24a93dc973c405a150a1fa4b5096dd8a556df01",
+          "integrity_ok": true
+        }
+      ]
+    }
+  ]
+}

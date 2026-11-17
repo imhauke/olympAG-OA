@@ -3,7 +3,7 @@
 > Read this first, then `AGENTS.md` (rules). Written so any agent (Claude, Codex, Cursor, Gemini…)
 > with **zero prior context** can continue. Updated at every commit checkpoint.
 
-**Last updated:** 2026-11-17 · after steps 6–7 (live Gemini + verified samples) · **Deadline:** Thu 2026-11-19
+**Last updated:** 2026-11-17 · after step 8 (bounded live evaluations) · **Deadline:** Thu 2026-11-19
 
 ## 1. The task
 Olymp technical case study: a **LangGraph agent (Python)** that edits existing `.docx` files from
@@ -26,8 +26,8 @@ deploy to a subdomain of janguzman.com.
 | 5 | LangGraph graph, tools, prompts + fake-LLM graph tests + CLI `edit` | ✅ done |
 | 6 | First live run (Gemini), fix provider gotchas | ✅ done |
 | 7 | Synthetic samples (`samples/`), outputs verified in CI | ✅ done |
-| 8 | Small live eval set + `evals.yml` (workflow_dispatch) + eval→regression loop | ⏭ next |
-| 9 | README + `docs/DEVELOPMENT.md` final write-up | ☐ |
+| 8 | Small live eval set + `evals.yml` (workflow_dispatch) + eval→regression loop | ✅ done |
+| 9 | README + `docs/DEVELOPMENT.md` final write-up | ⏭ next |
 
 ## 3. How to run
 ```bash
@@ -247,9 +247,8 @@ CI: `.github/workflows/ci.yml` runs the same gate on every push to `main` (no LL
 - `samples/README.md` explains the deliverables/runs. Root README links to examples/evidence.
   Word/LibreOffice visual review was not performed; it remains a human check.
 
-**Steps 8–9:** small eval set in `evals/cases/*.yaml` run by `evals/run.py`, manual only;
-`evals.yml` workflow_dispatch. Final README: architecture diagram, decisions, limitations,
-testing explanation; finish `docs/DEVELOPMENT.md`.
+**Step 9:** final README: architecture diagram, decisions, limitations, testing explanation;
+finish `docs/DEVELOPMENT.md`.
 
 **Additional checkpoint — paragraph style support (2026-11-17):** a user-supplied document
 request exposed that existing paragraphs could not receive heading styles. Added
@@ -267,6 +266,49 @@ The supplied document and outputs stay only in ignored `out/`; no real document 
 added. Automatic approval review rejected sending its content to Gemini without explicit
 disclosure authorization, so **zero live calls** were made for this request. A separately
 labelled local-tools output passed session integrity checks and python-docx reopening.
+
+**Step 8 — delivered** — **269 tests, 99.44% source coverage**, gate also passed with the CI
+Hypothesis profile. Initial full live suite **5/6, 28 calls**; after a prompt-only ambiguity fix,
+the failed case was retested **1/1, 2 calls**. **30 total Gemini invocations**, one HTTP 503
+included, no Anthropic or personal-document calls. The other five cases were not rerun under
+the new prompt: do not describe this as a final-version full-suite 6/6. This is a small smoke
+set, not a statistical reliability estimate. See `evals/baselines/2026-11-17.{md,json}`.
+- `evals/cases/*.yaml`: six strict cases covering session text/table/bullet edits, treatment
+  table + paragraph deletion (logo/hyperlink/merged cells), letter date/time formatting and
+  removal/insertion (superscript and section break), Heading 1/2/3, ambiguous dates, and
+  instructions embedded in document data. Sources are restricted to the three named synthetic
+  sample inputs or three synthetic builders; arbitrary document paths are rejected.
+- `evals/case.py`: Pydantic schemas with unknown fields rejected; output block assertions,
+  original changed-ID sets, insert/delete counts, missing text, styles, per-block C14N and
+  format checks. `before_id` handles ID shifts when comparing original/output paragraphs.
+  The extra synthetic builders reuse `tests.fixtures.builders` (repo/dev environment required).
+- `evals/verify.py`: independent output assertions using **case-defined** touched/style
+  permissions, never permissions taken from the model's log. Integrity + semantic assertions
+  + python-docx reopening must pass. Reviewer approval alone cannot pass a case. Clarification
+  cases require a real interrupt before any edit or output is saved.
+- `evals/run.py`: default `make eval` is a **plan only**; `--live` is required to construct a
+  model. Five editor turns/one review per case, zero SDK/reset retries. Optional single 503
+  resume per case, always inside one shared `--max-calls` budget. Callback `raise_error=True`
+  stops **before** excess editor/review calls. Budget-exhausted `not_run` cases stay in the
+  pass-rate denominator. Failures/errors exit 1; no silent provider/model fallback.
+- Reports under ignored `evals/reports/<UTC timestamp>-<suffix>/`: per-case inputs, successful
+  outputs, app reports, actual tool-call arguments/results, hashes, token usage, failures,
+  JSON/Markdown summary. Cost is explicitly unpriced unless both uniform token rates are
+  supplied; failed-call usage is unknown. A compact audited baseline is tracked separately.
+- `.github/workflows/evals.yml`: **workflow_dispatch only**, Gemini secret, selected case/model,
+  hard global cap, optional 503 retry, serialized runs and artifact upload even on failure.
+  Workflow input values reach Bash via quoted environment/array arguments. The remote workflow
+  has not been dispatched; the human must commit/push it and set `GEMINI_API_KEY` in Actions.
+  Normal CI remains offline. `tests/evals/` exercises all case paths with the scripted model,
+  both editor/review budget guards, a single 503 resume, negative scoring and workflow triggers.
+- **Failure→regression→fix:** live `ambiguous_date` changed both separately labelled dates and
+  its judge approved, even though the user named neither field nor all occurrences. Saved
+  `tests/fixtures/ambiguous_date_trace.json`; an offline negative eval replays it and must keep
+  scoring it as failure. Editor/reviewer prompts now explicitly forbid interpreting a singular
+  request as every matching field; choosing a block ID is not proof of user intent. This is
+  **prompt/model behavior**, not a deterministic ops bug or a new semantic guard. The targeted
+  live follow-up asked which date (or both), with no edits or output. Raw reports remain local;
+  the baseline records old/new prompt hashes and both outcomes.
 
 ## 6. Gotchas / environment
 - **iCloud Desktop sync breaks the venv.** The project currently lives in `~/Desktop` (iCloud
@@ -307,20 +349,15 @@ labelled local-tools output passed session integrity checks and python-docx reop
   case-study sizes, cache if long documents get slow).
 
 ## 7. Next action
-Step 5 was committed by the human before steps 6–7. **Steps 6–7 are now ready for human review
-and commit**; nothing was staged or committed by this agent. Suggested commit:
-`feat: verify live Gemini editing and add reproducible synthetic samples`.
+The user committed the earlier steps/heading support before this turn (working tree was clean).
+**Step 8 is ready for human review/commit**; nothing staged or committed by the agent.
+Suggested commit: `feat: add bounded synthetic evaluations and manual workflow`.
 
-Next: **step 8**, a small manual eval harness + cases (reuse sample inputs), with assertions on
-expected content, untouched blocks/formatting, and should-ask-clarification. Add
-`.github/workflows/evals.yml` as `workflow_dispatch` only. Keep CI offline. Announce the exact
-live-run call cap first and preserve the low-credit budget; do not rerun all samples needlessly.
-Turn each newly found failure into a deterministic failing regression before fixing it.
-Then step 9 finalizes architecture/limitations/testing documentation and the workflow write-up.
-
-The additional paragraph-style checkpoint above is also uncommitted; the human makes commits.
-A live run on a user-provided document now needs explicit consent for external disclosure if
-automatic approval review blocks it. Local editing and verification can proceed without that.
+Next: **step 9**, final README architecture/decisions/limitations/testing explanation and the
+AI-assisted workflow write-up. Link the samples and the qualified baseline; explain format
+preservation precisely, prompt-only ambiguity limitations, private-document disclosure and
+in-process checkpoints. Do not spend more live calls merely to refresh passing examples.
+The manual remote eval workflow is ready but not dispatched. Continue on `main`; human commits.
 
 API references consulted in step 5:
 [LangGraph interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts),

@@ -1,0 +1,23 @@
+id: treatment_edits
+source: treatment_plan
+instruction: >-
+  Change "Review after four weeks." to "Review after six weeks."
+  In the Breathing row, change the status from Planned to In progress.
+  Delete the entire paragraph "Internal draft placeholder - remove before sharing."
+  Preserve everything else, including the logo, hyperlink and merged table cells.
+changed_before: [p4, p5, t0.r1.c2.p0]
+deleted: 1
+absent_text: [Internal draft placeholder - remove before sharing.]
+blocks:
+  - block_id: p4
+    equals: Review after six weeks.
+    style: ListNumber
+  - block_id: t0.r1.c2.p0
+    equals: In progress
+  - block_id: p2
+    unchanged: true
+  - block_id: p5
+    before_id: p6
+    unchanged: true
+  - block_id: t0.r0.c0.p0
+    unchanged: true

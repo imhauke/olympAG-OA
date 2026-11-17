@@ -1,0 +1,51 @@
+{
+  "description": "Synthetic live trace: the editor guessed all dates; the judge approved. Expected eval outcome is failure.",
+  "responses": [
+    [
+      {
+        "name": "view_document",
+        "args": {
+          "max_chars": 5000
+        },
+        "id": "call_1136749456725245459",
+        "type": "tool_call"
+      }
+    ],
+    [
+      {
+        "name": "replace_text",
+        "args": {
+          "old": "12 March 2026",
+          "new": "19 March 2026",
+          "block_id": "p1"
+        },
+        "id": "call_15909533519461766735",
+        "type": "tool_call"
+      },
+      {
+        "name": "replace_text",
+        "args": {
+          "block_id": "p2",
+          "new": "19 March 2026",
+          "old": "12 March 2026"
+        },
+        "id": "call_15909533519461767966",
+        "type": "tool_call"
+      }
+    ],
+    [
+      {
+        "name": "finish",
+        "args": {
+          "summary": "Changed all occurrences of the date from 12 March 2026 to 19 March 2026."
+        },
+        "id": "call_962958072304231376",
+        "type": "tool_call"
+      }
+    ]
+  ],
+  "review": {
+    "approved": true,
+    "reason": "Recorded live approval of an incorrectly broadened request."
+  }
+}

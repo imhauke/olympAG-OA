@@ -1,0 +1,27 @@
+id: letter_edits
+source: practice_letter
+instruction: >-
+  Move the appointment from 20 March 2026 at 09:00 to 27 March 2026 at 10:30.
+  Remove the sentence "This draft sentence is obsolete." and its following space.
+  Add a paragraph immediately after the paragraph about bringing the completed form:
+  "Please contact the practice if you need to reschedule."
+  Keep the logo, signature, superscript reference, sections and all other content intact.
+changed_before: [p4, p5]
+inserted: 1
+absent_text: [This draft sentence is obsolete.]
+blocks:
+  - block_id: p4
+    equals: Your appointment is on 27 March 2026 at 10:30.
+    formats_unchanged: true
+  - block_id: p5
+    equals: Please bring the completed form.1
+  - block_id: p6
+    equals: Please contact the practice if you need to reschedule.
+  - block_id: p0
+    unchanged: true
+  - block_id: p7
+    before_id: p6
+    unchanged: true
+  - block_id: p8
+    before_id: p7
+    unchanged: true

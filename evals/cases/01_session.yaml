@@ -1,0 +1,23 @@
+id: session_edits
+source: therapy_session_note
+instruction: >-
+  Change the session date in the narrative from 12 March 2026 to 19 March 2026.
+  In the goals table, change the sleep target from 8h to 7.5h.
+  Add a bullet immediately after "Practised breathing exercises." reading
+  "Agreed to keep a sleep diary." Preserve all other content and formatting.
+changed_before: [p2, t0.r1.c1.p0]
+inserted: 1
+blocks:
+  - block_id: p2
+    contains: [19 March 2026]
+    not_contains: [12 March 2026]
+    formats_unchanged: true
+  - block_id: t0.r1.c1.p0
+    equals: 7.5h
+  - block_id: p5
+    equals: Agreed to keep a sleep diary.
+    style: ListBullet
+  - block_id: p4
+    unchanged: true
+  - block_id: p0
+    unchanged: true

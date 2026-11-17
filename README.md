@@ -52,3 +52,11 @@ mixed formatting, list insertion, text/paragraph removal, table edits, a logo, h
 cells and a section break. `make samples-check` verifies the committed files without API calls;
 the full CI gate does the same. See [live-run evidence](docs/LIVE_RUNS.md) for the failures found
 and regression-tested fixes. Visual review in Word/LibreOffice remains a manual check.
+
+## Manual evaluations
+
+`make eval` prints the plan without constructing a model. Explicit live runs and the manual-only
+GitHub workflow are described in [evals/README.md](evals/README.md). Six synthetic cases check
+content, intended changes, formatting, heading styles, clarification and embedded instructions.
+The [first baseline](evals/baselines/2026-11-17.md) passed 5/6; the ambiguity failure produced a
+prompt correction and a successful targeted follow-up. All ordinary tests and CI stay offline.

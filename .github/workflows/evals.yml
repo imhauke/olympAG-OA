@@ -1,0 +1,67 @@
+name: Live synthetic evaluations (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      case:
+        description: Case ID or all
+        type: choice
+        options:
+          - all
+          - session_edits
+          - treatment_edits
+          - letter_edits
+          - heading_hierarchy
+          - ambiguous_date
+          - embedded_instructions
+        default: all
+      model:
+        description: Gemini model ID
+        type: string
+        default: gemini-3.5-flash-lite
+      max_calls:
+        description: Hard global model-call cap (1..100)
+        type: number
+        default: 36
+      retry_unavailable:
+        description: Allow one HTTP 503 retry per case within the global cap
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-evals-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      ANTHROPIC_API_KEY: ""
+      EVAL_CASE: ${{ inputs.case }}
+      EVAL_MODEL: ${{ inputs.model }}
+      EVAL_MAX_CALLS: ${{ inputs.max_calls }}
+      EVAL_RETRY: ${{ inputs.retry_unavailable }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install locked dependencies
+        run: uv sync --locked
+      - name: Evaluate synthetic cases
+        shell: bash
+        run: |
+          args=(--live --model "$EVAL_MODEL" --max-calls "$EVAL_MAX_CALLS")
+          if [[ "$EVAL_CASE" != "all" ]]; then args+=(--case "$EVAL_CASE"); fi
+          if [[ "$EVAL_RETRY" == "true" ]]; then args+=(--retry-unavailable); fi
+          uv run python -m evals.run "${args[@]}"
+      - name: Upload reports and failed-case traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-eval-reports
+          path: evals/reports/
+          if-no-files-found: warn
