@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from docx import Document
+from PIL import ImageFont
 
 from docx_agent.agent.models import Settings
 from docx_agent.document.blocks import BlockIndex
@@ -28,6 +29,20 @@ def test_sample_inputs_are_reproducible(name: str) -> None:
     assert any("SYNTHETIC" in p.text for p in doc.paragraphs)
     with zipfile.ZipFile(io.BytesIO(expected)) as z:
         assert all(entry.date_time == ZIP_DATE for entry in z.infolist())
+
+
+@pytest.mark.parametrize("name", ["treatment_plan", "practice_letter"])
+def test_sample_logo_is_independent_of_host_font(name: str, monkeypatch) -> None:
+    def unavailable_font(*args, **kwargs):
+        raise AssertionError("Sample generation must not render platform-dependent fonts")
+
+    monkeypatch.setattr(ImageFont, "load_default", unavailable_font)
+    generated = SAMPLES[name].build()
+    with (
+        zipfile.ZipFile(io.BytesIO(generated)) as actual,
+        zipfile.ZipFile(ROOT / name / "input.docx") as expected,
+    ):
+        assert actual.read("word/media/image1.png") == expected.read("word/media/image1.png")
 
 
 def test_generate_check_detects_stale_input(tmp_path: Path) -> None:

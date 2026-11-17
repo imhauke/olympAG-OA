@@ -2,6 +2,7 @@
 
 Each folder contains `input.docx`, `instruction.txt`, actual Gemini `output.docx`, `report.json`,
 `diff.md` and `run.json` (calls/tokens, timestamps and SHA-256 provenance). All content is fictitious.
+`assets/logo.png` preserves the original synthetic logo without platform-dependent font rendering.
 
 | Sample | Changes | Preserved features |
 |---|---|---|

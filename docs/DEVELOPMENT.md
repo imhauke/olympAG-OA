@@ -25,6 +25,7 @@ hooks and generated logs were removed from the final deliverable. The gate and C
 | Buggy insert/delete could appear as one modification in the final diff. | [Session tests](../tests/unit/test_agent_session.py); verify intermediate operation snapshots/effects, not only final text. |
 | Editor changed both ambiguous dates; judge approved. | Independent eval failed. [Recorded synthetic trace](../tests/fixtures/ambiguous_date_trace.json) remains a [negative scoring regression](../tests/evals/test_eval.py). Prompts now require scope clarification; this is not a deterministic intent guard. |
 | Provider 503 after completed work. | Explicit opt-in resume at the failed node; [scripted test](../tests/evals/test_eval.py) checks no edit replay and counts failed requests toward the shared budget. |
+| Sample reproducibility passed on macOS but failed in Linux CI. | Pillow font rendering changed logo bytes. Reuse the original synthetic PNG; [regression](../tests/test_samples.py) disables host font loading. Existing DOCX/provenance stay unchanged. |
 
 ## Measured evidence
 
@@ -34,7 +35,7 @@ hooks and generated logs were removed from the final deliverable. The gate and C
 - [Eval baseline](../evals/baselines/2026-11-17.md): **5/6 initially**, then **1/1** on the failed
   ambiguity case after a prompt-only correction, **30 calls total**. The other five were not
   rerun under the new prompt. No statistical reliability or final-version 6/6 claim.
-- Last full gate: **269 tests, 99.44% source coverage**; same checks passed with the CI Hypothesis
+- Last full gate: **271 tests, 99.44% source coverage**; same checks passed with the CI Hypothesis
   profile. Local/static integrity tests, corruption tests and real graph execution are separate evidence.
 
 All public fixtures are synthetic. A private user document was edited locally and remains

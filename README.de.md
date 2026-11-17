@@ -61,7 +61,7 @@ enthalten Eingabe, Anweisung, echte Gemini-Ausgabe, Diff und Integritäts-/Herku
 Das Layout lässt sich durch Öffnen der Word-Dateien prüfen.
 
 `make check` = Ruff-Lint/Format + striktes Quellcode-mypy + vollständige pytest-/Coverage-Prüfung,
-ebenso in CI. Letzter Lauf: **269 Tests, 99,44 % Quellcodeabdeckung** (Mindestwert 85 %).
+ebenso in CI. Letzter Lauf: **271 Tests, 99,44 % Quellcodeabdeckung** (Mindestwert 85 %).
 Ohne Make:
 
 ```sh

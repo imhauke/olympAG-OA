@@ -58,7 +58,7 @@ input, instruction, actual Gemini output, diff and integrity/provenance reports.
 files to inspect their layout.
 
 `make check` = Ruff lint/format + strict source mypy + full pytest/coverage, also run in CI.
-Last gate: **269 tests, 99.44% source coverage** (minimum 85%). Without Make, run:
+Last gate: **271 tests, 99.44% source coverage** (minimum 85%). Without Make, run:
 
 ```sh
 uv run ruff check .

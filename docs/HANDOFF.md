@@ -10,11 +10,15 @@ Continue only on `main`; the human stages/commits/pushes. No live calls without 
 - Native Gemini `gemini-3.5-flash-lite`, medium thinking, tested live. Anthropic is optional/unverified.
 - Three real synthetic sample outputs. Eval evidence: initial 5/6 plus targeted 1/1, not a
   final-version full-suite 6/6. See [baseline](../evals/baselines/2026-11-17.md).
-- Last gate: `HYPOTHESIS_PROFILE=ci make check` — 269 tests, 99.44% source coverage.
+- Last gate: `HYPOTHESIS_PROFILE=ci make check` — 271 tests, 99.44% source coverage.
+  Passed on macOS and a clean Linux container with locked dependencies; original CI failure reproduced.
   Cleanup verification also passed sample reproducibility, CLI integrity and eval plan (no live calls).
 - This cleanup removes tracked coverage conflict copies, the case-study PDF from the deliverable,
   development-only Claude hooks/logs, repeated documentation and unused direct dependencies.
   Original brief/helpers are preserved locally in ignored `out/review-cleanup/`.
+- CI failure in sample reproducibility: host-dependent Pillow logo rendering. Generator now uses
+  the original `samples/assets/logo.png`; regression tests forbid host font loading. Stored
+  DOCX files and provenance hashes are unchanged. Remote CI needs a human commit/push.
 
 ## Verify and maintain
 

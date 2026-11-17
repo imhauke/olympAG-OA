@@ -16,7 +16,6 @@ from docx.enum.section import WD_SECTION
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml import OxmlElement
 from docx.shared import Inches, RGBColor
-from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent
 SYNTHETIC = "SYNTHETIC - fictitious practice, people and notes. Not a real clinical record."
@@ -51,16 +50,8 @@ def _document(title: str) -> DocumentType:
 
 
 def _logo() -> io.BytesIO:
-    image = Image.new("RGB", (240, 64), "#edf4f1")
-    draw = ImageDraw.Draw(image)
-    draw.rectangle((12, 12, 52, 52), fill="#168070")
-    draw.rectangle((28, 20, 36, 44), fill="white")
-    draw.rectangle((20, 28, 44, 36), fill="white")
-    draw.text((68, 25), "PRAXIS BEISPIEL", fill="#163f38")
-    stream = io.BytesIO()
-    image.save(stream, "PNG")
-    stream.seek(0)
-    return stream
+    # Preserve the original synthetic image; font rasterization varies by platform.
+    return io.BytesIO((ROOT / "assets" / "logo.png").read_bytes())
 
 
 def _link(doc: DocumentType) -> None:
