@@ -267,6 +267,10 @@ class _Nodes:
         return {"status": status}
 
 
+def _route(state: AgentState) -> str:
+    return state["next"]
+
+
 def build_graph(
     model: BaseChatModel,
     reviewer: Runnable[Any, Any] | None = None,
@@ -284,8 +288,16 @@ def build_graph(
     graph.add_node("save", nodes.save)
     graph.add_edge(START, "load")
     graph.add_edge("load", "agent")
-    for name in ("agent", "tools", "validate", "review"):
-        graph.add_conditional_edges(name, lambda state: state["next"])
+    # Declared destinations make the compiled graph's real shape visible to LangGraph
+    # (get_graph() / Mermaid) and reject an unexpected route instead of following it.
+    routes = {
+        "agent": ["tools", "agent", END],
+        "tools": ["agent", "validate", "clarify"],
+        "validate": ["review", "retry", "save", END],
+        "review": ["save", "retry", END],
+    }
+    for name, destinations in routes.items():
+        graph.add_conditional_edges(name, _route, destinations)
     graph.add_edge("clarify", "agent")
     graph.add_edge("retry", "agent")
     graph.add_edge("save", END)

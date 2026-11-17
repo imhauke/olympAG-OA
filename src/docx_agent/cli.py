@@ -110,6 +110,19 @@ def verify(
         raise typer.Exit(1)
 
 
+def _root_cause(exc: BaseException) -> str:
+    """Name the innermost cause (e.g. a provider 429/503) so failures are actionable."""
+    cause = exc
+    while cause.__cause__ is not None:
+        cause = cause.__cause__
+    if cause is exc:
+        return ""
+    message = " ".join(str(cause).split())
+    if len(message) > 300:
+        message = message[:297] + "..."
+    return f" Cause: {type(cause).__name__}: {message}"
+
+
 @app.command()
 def edit(
     path: DocxPath,
@@ -181,7 +194,7 @@ def edit(
     except (PackageError, OSError, ValueError) as exc:
         raise _fail(str(exc)) from exc
     except AgentError as exc:
-        typer.echo(f"error: {exc}", err=True)
+        typer.echo(f"error: {exc}{_root_cause(exc)}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"{state['status']}: {state.get('reason', '')}")
     if state.get("integrity"):

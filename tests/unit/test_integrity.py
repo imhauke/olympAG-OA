@@ -391,3 +391,42 @@ def test_large_changed_region_is_checked_quickly() -> None:
     assert report.ok
     assert len(report.changes) == 800
     assert all(c.kind == "modified" and c.before_id == c.after_id for c in report.changes)
+
+
+# ------------------------------------------------------------------ pre-submission deep check
+
+
+def test_insert_starting_with_space_after_bold_text_is_not_a_false_positive() -> None:
+    """Found on a macOS-written docx: inserting " (Dr.)" after a bold name and changing a
+    date in the same paragraph made the char-only diff pair the bold inserted space with the
+    plain original space and report a formatting change that did not happen."""
+    blob = build_xml_docx(
+        '<w:p><w:r><w:t xml:space="preserve">Die Klientin </w:t></w:r>'
+        "<w:r><w:rPr><w:b/></w:rPr><w:t>Erika Musterfrau</w:t></w:r>"
+        '<w:r><w:t xml:space="preserve"> nahm am </w:t></w:r>'
+        "<w:r><w:rPr><w:i/></w:rPr><w:t>12. März 2026</w:t></w:r>"
+        '<w:r><w:t xml:space="preserve"> teil.</w:t></w:r></w:p>'
+    )
+
+    def edit(index: BlockIndex) -> None:
+        ops.replace_text(index, "12. März 2026", "19. März 2026")
+        ops.insert_text(index, " (Dr.)", anchor="Erika Musterfrau")
+
+    report = check(blob, mutate(blob, edit), touched={"p0"})
+    assert report.ok, report.violations
+
+
+def test_format_change_next_to_an_edit_is_still_detected() -> None:
+    blob = build_xml_docx(
+        '<w:p><w:r><w:t xml:space="preserve">plain words before </w:t></w:r>'
+        "<w:r><w:rPr><w:b/></w:rPr><w:t>bold</w:t></w:r></w:p>"
+    )
+
+    def edit(index: BlockIndex) -> None:
+        ops.replace_text(index, "bold", "BOLD")
+        first = index.get("p0")[0]
+        etree.SubElement(etree.SubElement(first, qn("w:rPr")), qn("w:i"))
+        first.insert(0, first[-1])  # rPr must come first
+
+    report = check(blob, mutate(blob, edit), touched={"p0"})
+    assert any("formatting changed" in v for v in report.violations), report.violations

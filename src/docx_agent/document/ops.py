@@ -90,6 +90,7 @@ class Match:
     start: int
     end: int
     context: str  # surrounding text, the match wrapped in guillemets
+    exact: bool = True  # False: found only by the forgiving (folded/whitespace) fallback
 
 
 # ---------------------------------------------------------------------------- matching
@@ -169,7 +170,7 @@ def find_text(index: BlockIndex, query: str, scope: str | None = None) -> list[M
         norm, idx = _normalize(text)
         for s in _occurrences(norm, needle):
             start, end = idx[s], idx[s + len(needle) - 1] + 1
-            matches.append(Match(bid, start, end, _context(text, start, end)))
+            matches.append(Match(bid, start, end, _context(text, start, end), exact=False))
     return matches
 
 
@@ -277,6 +278,8 @@ def _span_edit(op: str, index: BlockIndex, span: Match, new: str) -> EditResult:
     p = index.paragraph(bid)
     before = paragraph_text(p)
     new = check_new_text(new)  # normalise CRLF first so trimming compares like with like
+    if not span.exact:
+        new = restore_typography(before[span.start : span.end], new)
     start, end, new = minimal_change(before, span.start, span.end, new)
     attach: Attach = "auto"
     if start == end and span.start < span.end:  # a replace trimmed to a pure insert
@@ -342,6 +345,26 @@ def _replace_changes(p: _E, changes: list[tuple[int, int, str]], quote_start: in
         removed.update(replace_span(candidate, start, end, new, attach=attach))
     p[:] = list(candidate)
     return sorted(removed)
+
+
+def _fold_char(ch: str) -> str:
+    return " " if ch.isspace() else ch.translate(_FOLD)
+
+
+def restore_typography(old: str, new: str) -> str:
+    """Keep the document's own characters wherever a forgiving match left text unchanged.
+
+    The quote matched only after folding (en dash vs '-', curly vs straight quotes, tab or
+    NBSP vs space). Where `new` repeats the quote's text, write back the original characters,
+    so an edit elsewhere in the quote cannot silently retype them.
+    """
+    folded_old = [_fold_char(c) for c in old]
+    folded_new = [_fold_char(c) for c in new]
+    out = list(new)
+    matcher = difflib.SequenceMatcher(None, folded_old, folded_new, autojunk=False)
+    for block in matcher.get_matching_blocks():
+        out[block.b : block.b + block.size] = old[block.a : block.a + block.size]
+    return "".join(out)
 
 
 def minimal_change(text: str, start: int, end: int, new: str) -> tuple[int, int, str]:

@@ -335,21 +335,39 @@ def _check_modified(
     )
     if ppr_changed:
         report.violations.append(f"{a.bid}: paragraph properties (style, numbering...) changed.")
+    rewritten = (
+        a.text != b.text
+        and difflib.SequenceMatcher(None, a.text, b.text, autojunk=False).ratio()
+        < SAME_PARAGRAPH_RATIO
+    )
+    if not rewritten:
+        _check_unedited_formatting(a, b, report)
+    _check_whitespace(a, b, report)
+
+
+def _check_unedited_formatting(a: _Para, b: _Para, report: IntegrityReport) -> None:
+    """Unchanged text must keep its formatting.
+
+    Align (character, formatting) pairs first, so unchanged text pairs with *itself* and an
+    insertion that starts with a space cannot be mistaken for a reformatted original space.
+    Whatever the pair alignment leaves unmatched but is still the same text (whole region, or
+    a stretch of >= MIN_ANCHOR chars) is text whose formatting changed.
+    """
     a_fmt, b_fmt = char_formats(a.el), char_formats(b.el)
-    matcher = difflib.SequenceMatcher(None, a.text, b.text, autojunk=False)
-    identical_text = a.text == b.text
-    rewritten = not identical_text and matcher.ratio() < SAME_PARAGRAPH_RATIO
-    for tag, i1, i2, j1, _ in [] if rewritten else matcher.get_opcodes():
-        if tag != "equal" or (not identical_text and i2 - i1 < MIN_ANCHOR):
-            continue  # short coincidental matches between rewritten texts are noise
-        for k in range(i2 - i1):
-            if a_fmt[i1 + k][1] != b_fmt[j1 + k][1]:
-                snippet = a.text[i1 + k : i1 + k + 20]
+    pairs = difflib.SequenceMatcher(None, a_fmt, b_fmt, autojunk=False)
+    for tag, i1, i2, j1, j2 in pairs.get_opcodes():
+        if tag != "replace":
+            continue
+        a_text, b_text = a.text[i1:i2], b.text[j1:j2]
+        chars = difflib.SequenceMatcher(None, a_text, b_text, autojunk=False)
+        whole = a_text == b_text
+        for block in chars.get_matching_blocks():
+            if block.size and (whole or block.size >= MIN_ANCHOR):
+                snippet = a.text[i1 + block.a : i1 + block.a + 20]
                 report.violations.append(
                     f"{a.bid}: formatting changed on unedited text at {snippet!r}."
                 )
-                break
-    _check_whitespace(a, b, report)
+                return
 
 
 def _droppable_whitespace(p: _E) -> Counter[str]:

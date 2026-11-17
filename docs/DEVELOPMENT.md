@@ -25,6 +25,8 @@ hooks and generated logs were removed from the final deliverable. The gate and C
 | Buggy insert/delete could appear as one modification in the final diff. | [Session tests](../tests/unit/test_agent_session.py); verify intermediate operation snapshots/effects, not only final text. |
 | Editor changed both ambiguous dates; judge approved. | Independent eval failed. [Recorded synthetic trace](../tests/fixtures/ambiguous_date_trace.json) remains a [negative scoring regression](../tests/evals/test_eval.py). Prompts now require scope clarification; this is not a deterministic intent guard. |
 | Provider 503 after completed work. | Explicit opt-in resume at the failed node; [scripted test](../tests/evals/test_eval.py) checks no edit replay and counts failed requests toward the shared budget. |
+| Pre-submission check on a macOS-written `.docx`: quoting an en dash as '-' retyped the document's dash. | [Unit regression](../tests/unit/test_ops.py) + [property](../tests/property/test_runs_properties.py): forgiving matches restore the original characters where text is unchanged; exact quotes can still change typography on purpose. |
+| Same check: inserting " (Dr.)" after a bold name plus a date edit was rejected as a formatting change. | Checker false positive (char-only diff paired the new bold space with an old plain one). [Regression](../tests/unit/test_integrity.py): align (char, format) pairs first; detection next to edits still tested. |
 | Sample reproducibility passed on macOS but failed in Linux CI. | Pillow font rendering changed logo bytes. Reuse the original synthetic PNG; [regression](../tests/test_samples.py) disables host font loading. Existing DOCX/provenance stay unchanged. |
 
 ## Measured evidence
@@ -34,10 +36,12 @@ hooks and generated logs were removed from the final deliverable. The gate and C
   published as outputs. Final saved runs: session 6 calls (one retry), treatment 5, letter 5.
 - [Eval baseline](../evals/baselines/2026-11-17.md): **5/6 initially**, then **1/1** on the failed
   ambiguity case after a prompt-only correction, **30 calls total**.
-- [Final-prompt run](../evals/baselines/2026-11-17-final.md): **6/6**, 45 calls; all non-passes were
-  provider 429/503 (free-tier 15 requests/minute), fixed by running cases one at a time. Each case
-  passed once: not a statistical reliability claim.
-- Last full gate: **271 tests, 99.44% source coverage**; same checks passed with the CI Hypothesis
+- [Final-prompt run](../evals/baselines/2026-11-17-final.md): **6/6**, 35 calls; all non-passes were
+  provider 503s, run one case at a time (free tier: 15 requests/minute). Each case passed once:
+  not a statistical reliability claim. Nine unseen live cases on Gemini and Sonnet 5.5 found one
+  prompt issue (unsupported features could be approximated; a first wording over-refused link
+  text) and two deterministic bugs, all fixed with regressions.
+- Last full gate: **277 tests, 99.37% source coverage**; same checks passed with the CI Hypothesis
   profile. Local/static integrity tests, corruption tests and real graph execution are separate evidence.
 
 All public fixtures are synthetic. A private user document was edited locally and remains

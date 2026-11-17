@@ -501,3 +501,28 @@ def test_delete_paragraph_with_tracked_paragraph_mark_needs_allow_media() -> Non
     with pytest.raises(EditError, match="tracked change"):
         ops.delete_paragraph(idx, "p0")
     assert ops.delete_paragraph(idx, "p0", allow_media=True).removed == ("tracked change",)
+
+
+# ------------------------------------------------------------------ pre-submission deep check
+
+EN_DASH, CURLY = chr(0x2013), chr(0x2019)
+
+
+def test_forgiving_match_keeps_original_typography() -> None:
+    """Found on a macOS-written docx: quoting an en dash as '-' replaced the document's dash."""
+    idx = BlockIndex(
+        xml_body(
+            f"<w:p><w:r><w:t>Bericht {EN_DASH} it{CURLY}s final</w:t></w:r></w:p>"
+            "<w:p><w:r><w:t>Name:</w:t><w:tab/><w:t>Max</w:t></w:r></w:p>"
+        )
+    )
+    ops.replace_text(idx, "Bericht - it's final", "Bericht (Entwurf) - it's draft")
+    assert paragraph_text(idx.paragraph("p0")) == f"Bericht (Entwurf) {EN_DASH} it{CURLY}s draft"
+    ops.replace_text(idx, "Name: Max", "Name: Erika")
+    assert paragraph_text(idx.paragraph("p1")) == "Name:\tErika"
+
+
+def test_exact_match_can_still_change_typography_on_purpose() -> None:
+    idx = BlockIndex(xml_body(f"<w:p><w:r><w:t>a {EN_DASH} b</w:t></w:r></w:p>"))
+    ops.replace_text(idx, f"a {EN_DASH} b", "a - b")
+    assert paragraph_text(idx.paragraph("p0")) == "a - b"

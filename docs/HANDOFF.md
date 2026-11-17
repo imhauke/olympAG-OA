@@ -11,7 +11,7 @@ Continue only on `main`; the human stages/commits/pushes. No live calls without 
 - Three real synthetic sample outputs. Eval evidence: first baseline 5/6 + targeted 1/1; final prompt
   6/6 (each case passed once, run case by case on the free tier). See
   [final](../evals/baselines/2026-11-17-final.md) and [first](../evals/baselines/2026-11-17.md) baselines.
-- Last gate: `HYPOTHESIS_PROFILE=ci make check` — 271 tests, 99.44% source coverage.
+- Last gate: `HYPOTHESIS_PROFILE=ci make check` — 277 tests, 99.37% source coverage.
   Passed on macOS and a clean Linux container with locked dependencies; original CI failure reproduced.
   Cleanup verification also passed sample reproducibility, CLI integrity and eval plan (no live calls).
 - This cleanup removes tracked coverage conflict copies, the case-study PDF from the deliverable,

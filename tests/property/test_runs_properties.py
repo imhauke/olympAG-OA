@@ -16,7 +16,7 @@ from lxml import etree
 
 from docx_agent.document.errors import EditError
 from docx_agent.document.ns import qn
-from docx_agent.document.ops import minimal_change
+from docx_agent.document.ops import _fold_char, minimal_change, restore_typography
 from docx_agent.document.runs import ParagraphMap, char_formats, paragraph_text, replace_span
 from tests.fixtures.builders import xml_paragraph
 
@@ -156,3 +156,14 @@ def test_minimal_change_is_equivalent(text: str, data: st.DataObject, new: str) 
     assert start <= s <= e <= end
     assert text[:s] + n + text[e:] == text[:start] + new + text[end:]
     assert len(n) <= len(new)
+
+
+TYPO = "ab -'\t " + "".join(map(chr, (0x2013, 0x2019, 0x00A0)))
+
+
+@given(st.text(alphabet=TYPO, max_size=10), st.text(alphabet=TYPO, max_size=10))
+def test_restore_typography_only_swaps_equivalent_characters(old: str, new: str) -> None:
+    restored = restore_typography(old, new)
+    assert len(restored) == len(new)
+    assert [_fold_char(c) for c in restored] == [_fold_char(c) for c in new]
+    assert restore_typography(old, old) == old

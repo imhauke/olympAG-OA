@@ -60,7 +60,7 @@ input, instruction, actual Gemini output, diff and integrity/provenance reports.
 files to inspect their layout.
 
 `make check` = Ruff lint/format + strict source mypy + full pytest/coverage, also run in CI.
-Last gate: **271 tests, 99.44% source coverage** (minimum 85%). Without Make, run:
+Last gate: **277 tests, 99.37% source coverage** (minimum 85%). Without Make, run:
 
 ```sh
 uv run ruff check .
@@ -120,7 +120,9 @@ uv run python -m evals.run --live --max-calls 36 --retry-unavailable
 Six synthetic cases; hard shared call budget; optional single 503 resume per case inside that
 budget. GitHub evals are `workflow_dispatch` only. [Runner details](evals/README.md).
 Measured: first baseline **5/6**, then a prompt fix for the ambiguity case. Under the final
-prompt **all 6/6 cases passed** (45 Gemini calls, run case by case because the free tier allows
-15 requests/minute; every non-pass was a provider 429/503). Each case passed once: not a
-measured pass rate. [Final evidence](evals/baselines/2026-11-17-final.md) ·
+prompt **all 6/6 cases passed** (35 Gemini calls, run case by case because the free tier allows
+15 requests/minute; every non-pass was a provider 503). Each case passed once: not a measured
+pass rate. Nine further unseen instructions (add/remove/replace, link text, logo removal, an
+unsupported table, a German macOS-written `.docx`) were checked live on Gemini and Claude Sonnet
+5.5: no saved output violated integrity; failures were rejections or provider errors. [Final evidence](evals/baselines/2026-11-17-final.md) ·
 [first baseline](evals/baselines/2026-11-17.md).

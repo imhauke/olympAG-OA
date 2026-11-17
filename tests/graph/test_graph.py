@@ -319,3 +319,29 @@ def test_heading_style_changes_and_rename(tmp_path: Path) -> None:
     assert result["status"] == "saved"
     assert context.session.validate().ok
     assert [e.style for e in context.session.edits] == [None, "Heading1", "Heading2"]
+
+
+def test_graph_declares_its_real_shape() -> None:
+    """Routes are declared, so the compiled graph (and its Mermaid view) shows every path."""
+    graph = build_graph(ScriptedModel(responses=[])).get_graph()
+    edges = {(e.source, e.target, e.conditional) for e in graph.edges}
+    assert edges == {
+        ("__start__", "load", False),
+        ("load", "agent", False),
+        ("agent", "tools", True),
+        ("agent", "agent", True),
+        ("agent", "__end__", True),
+        ("tools", "agent", True),
+        ("tools", "validate", True),
+        ("tools", "clarify", True),
+        ("clarify", "agent", False),
+        ("validate", "review", True),
+        ("validate", "retry", True),
+        ("validate", "save", True),
+        ("validate", "__end__", True),
+        ("review", "save", True),
+        ("review", "retry", True),
+        ("review", "__end__", True),
+        ("retry", "agent", False),
+        ("save", "__end__", False),
+    }

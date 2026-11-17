@@ -26,5 +26,5 @@ supplied for a uniform-rate estimate; failed-request usage is unknown.
 GitHub runs only via `workflow_dispatch`, uses the `GEMINI_API_KEY` secret and uploads reports
 even on failure. Ordinary CI stays offline. On a live failure, save the trace, reproduce offline,
 fix, run `make check`, then rerun only the affected case. [First baseline: 5/6 + targeted 1/1](baselines/2026-11-17.md);
-[final prompt: 6/6](baselines/2026-11-17-final.md), 45 calls. On the free tier (15 requests/minute)
+[final prompt: 6/6](baselines/2026-11-17-final.md), 35 calls, plus nine unseen live cases. On the free tier (15 requests/minute)
 run cases individually, a minute apart: the whole suite at once hits 429s.

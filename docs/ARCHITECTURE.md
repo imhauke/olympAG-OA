@@ -27,10 +27,10 @@ override provider failures, clarification or the turn cap. SDK retries are disab
 | Layer | Choice and reason |
 |---|---|
 | [`document/`](../src/docx_agent/document/) | Own OPC/ZIP + lxml editing. Non-main parts retain original bytes; python-docx is only a fixture/assertion dependency. |
-| Addressing | Exact quotes, then normalized fallback; stable in-memory block IDs, inserted `n*` IDs and deleted tombstones. No IDs stamped into XML. |
+| Addressing | Exact quotes, then normalized fallback (dashes, curly quotes, tabs/NBSP, soft hyphens). A fallback match writes back the document's own characters wherever the text is unchanged, so a typed '-' never retypes an en dash. Stable in-memory block IDs, inserted `n*` IDs, deleted tombstones; no IDs stamped into XML. |
 | Run editing | Trim unchanged context; separate changes around token anchors; prepare multi-span replacements in a copied XML context for atomic refusal. |
 | Styles | Apply an existing catalog style by changing only `w:pPr/w:pStyle`; other properties and runs remain protected. |
-| [`agent/`](../src/docx_agent/agent/) | Explicit StateGraph, typed tools, no shell/code execution. Mutable `DocumentSession` in runtime context; append-only checkpointed messages. |
+| [`agent/`](../src/docx_agent/agent/) | Explicit StateGraph with declared conditional routes (the compiled graph's Mermaid view matches the diagram above; a test pins its edges), typed tools, no shell/code execution. Mutable `DocumentSession` in runtime context; append-only checkpointed messages. |
 | Validation/review | Deterministic checks establish integrity; a separate JSON-schema judge assesses intent using changes, original text and actual touched-block styles. |
 
 The session retains original bytes and per-operation receipts with before/after snapshots and
@@ -49,14 +49,17 @@ the two-file publication is not crash-atomic.
    content** is identical. Re-deflation/main XML serialization may change complete ZIP bytes.
 2. Canonical XML equality for untouched paragraphs and the table/cell/section skeleton.
    Touched IDs and inserted counts must account for observed changes.
-3. Paragraph properties stay identical except exact declared style assignments. Equal-text
-   paragraphs compare all run/container character formats. Changed-text pairs skip equal
-   stretches shorter than three characters; pairs below 0.5 text similarity skip format comparison.
-   Paragraph alignment is heuristic. Property tests additionally check exact formatting outside spans.
+3. Paragraph properties stay identical except exact declared style assignments. Unchanged text
+   keeps its formatting: (character, formatting) pairs are aligned first, so unchanged text pairs
+   with itself; text left unmatched but identical (a whole region, or ≥ 3 characters) changed
+   format. Pairs below 0.5 text similarity count as rewritten. Paragraph alignment is heuristic.
+   Property tests additionally check exact formatting outside spans.
 4. Protected-content fingerprints cover drawings, fields, references, links, bookmarks, sections
    and revisions. Intended removals are restricted to changed/touched blocks; unknown content is read-only.
 5. New structural/whitespace hazards and each operation's actual before/after effect are checked.
-   Tests/evals reopen outputs with python-docx; no Word rendering or pixel comparison is performed.
+   Tests/evals reopen outputs with python-docx. No automated Word rendering: a manual check on a
+   macOS-written `.docx` (no `styles.xml`) rendered input and output via QuickLook and reopened
+   them with Apple's parser; Microsoft Word itself was not available.
 
 Standalone `verify` assumes unchanged styles. Session checks accept exact `style_changes` permissions;
 the CLI has no matching flag. Integrity and model approval do not guarantee correct user intent.

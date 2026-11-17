@@ -62,7 +62,7 @@ enthalten Eingabe, Anweisung, echte Gemini-Ausgabe, Diff und Integritäts-/Herku
 Das Layout lässt sich durch Öffnen der Word-Dateien prüfen.
 
 `make check` = Ruff-Lint/Format + striktes Quellcode-mypy + vollständige pytest-/Coverage-Prüfung,
-ebenso in CI. Letzter Lauf: **271 Tests, 99,44 % Quellcodeabdeckung** (Mindestwert 85 %).
+ebenso in CI. Letzter Lauf: **277 Tests, 99,37 % Quellcodeabdeckung** (Mindestwert 85 %).
 Ohne Make:
 
 ```sh
@@ -127,7 +127,10 @@ uv run python -m evals.run --live --max-calls 36 --retry-unavailable
 Sechs synthetische Fälle; hartes gemeinsames Aufruflimit; optional eine 503-Wiederholung je Fall
 innerhalb dieses Limits. GitHub-Evals nur per `workflow_dispatch`.
 [Runner-Details](evals/README.md). Gemessen: erste Baseline **5/6**, danach Prompt-Korrektur für den Mehrdeutigkeitsfall. Mit dem
-finalen Prompt **bestanden alle 6/6 Fälle** (45 Gemini-Aufrufe, fallweise ausgeführt, da der
-Free Tier 15 Anfragen/Minute erlaubt; jeder Fehlschlag war ein Provider-429/503). Jeder Fall
-bestand einmal: keine gemessene Erfolgsquote. [Finaler Nachweis](evals/baselines/2026-11-17-final.md) ·
+finalen Prompt **bestanden alle 6/6 Fälle** (35 Gemini-Aufrufe, fallweise ausgeführt, da der
+Free Tier 15 Anfragen/Minute erlaubt; jeder Fehlschlag war ein Provider-503). Jeder Fall
+bestand einmal: keine gemessene Erfolgsquote. Neun weitere unbekannte Anweisungen (Hinzufügen,
+Entfernen, Ersetzen, Linktext, Logo, nicht unterstützte Tabelle, deutsches macOS-`.docx`) wurden
+live mit Gemini und Claude Sonnet 5.5 geprüft: keine gespeicherte Ausgabe verletzte die
+Integrität; Fehlschläge waren Ablehnungen oder Provider-Fehler. [Finaler Nachweis](evals/baselines/2026-11-17-final.md) ·
 [erste Baseline](evals/baselines/2026-11-17.md).

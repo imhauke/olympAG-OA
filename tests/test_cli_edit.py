@@ -116,6 +116,7 @@ def test_edit_cli_provider_failure(paths, monkeypatch: pytest.MonkeyPatch) -> No
     result = runner.invoke(cli.app, ["edit", str(source), "Change sleep", "-o", str(output)])
     assert result.exit_code == 1
     assert "Editor model call failed" in result.stderr
+    assert "Cause: AssertionError: Unexpected LLM call" in result.stderr  # root error shown
     assert not output.exists()
 
 
@@ -129,6 +130,7 @@ def test_edit_cli_invalid_review(paths, monkeypatch: pytest.MonkeyPatch) -> None
     result = runner.invoke(cli.app, ["edit", str(source), "Change sleep", "-o", str(output)])
     assert result.exit_code == 1
     assert "structured response failed" in result.stderr
+    assert "Cause: ValidationError" in result.stderr
     assert not output.exists()
 
 
