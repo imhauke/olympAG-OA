@@ -4,7 +4,7 @@ Python/LangGraph-Agent für `.docx`-Bearbeitung per Anweisung: Einfügen, Ersetz
 Anwenden vorhandener Absatzstile bei Erhalt unberührter Inhalte und Formatierungen.
 
 [English](README.md) · [Architektur & Integrität](docs/ARCHITECTURE.md) ·
-[KI-Entwicklungsprozess](docs/DEVELOPMENT.md) · [Gemessene Evaluation](evals/baselines/2026-11-17.md)
+[KI-Entwicklungsprozess](docs/DEVELOPMENT.md) · [Gemessene Evaluation](evals/baselines/2026-11-17-final.md)
 
 ## Start
 
@@ -125,7 +125,8 @@ uv run python -m evals.run --live --max-calls 36 --retry-unavailable
 
 Sechs synthetische Fälle; hartes gemeinsames Aufruflimit; optional eine 503-Wiederholung je Fall
 innerhalb dieses Limits. GitHub-Evals nur per `workflow_dispatch`.
-[Runner-Details](evals/README.md). Gemessen: zunächst **5/6**, danach **1/1** beim fehlerhaften
-Mehrdeutigkeitsfall nach Prompt-Korrektur; **30 Aufrufe insgesamt**. Die anderen fünf wurden
-mit dem finalen Prompt nicht wiederholt: keine abschließende 6/6- oder allgemeine
-Zuverlässigkeitsaussage. [Nachweis](evals/baselines/2026-11-17.md).
+[Runner-Details](evals/README.md). Gemessen: erste Baseline **5/6**, danach Prompt-Korrektur für den Mehrdeutigkeitsfall. Mit dem
+finalen Prompt **bestanden alle 6/6 Fälle** (45 Gemini-Aufrufe, fallweise ausgeführt, da der
+Free Tier 15 Anfragen/Minute erlaubt; jeder Fehlschlag war ein Provider-429/503). Jeder Fall
+bestand einmal: keine gemessene Erfolgsquote. [Finaler Nachweis](evals/baselines/2026-11-17-final.md) ·
+[erste Baseline](evals/baselines/2026-11-17.md).

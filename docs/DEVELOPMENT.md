@@ -33,8 +33,10 @@ hooks and generated logs were removed from the final deliverable. The gate and C
   Sample/smoke attempts used **33 Gemini invocations**, including three 503s; failures were not
   published as outputs. Final saved runs: session 6 calls (one retry), treatment 5, letter 5.
 - [Eval baseline](../evals/baselines/2026-11-17.md): **5/6 initially**, then **1/1** on the failed
-  ambiguity case after a prompt-only correction, **30 calls total**. The other five were not
-  rerun under the new prompt. No statistical reliability or final-version 6/6 claim.
+  ambiguity case after a prompt-only correction, **30 calls total**.
+- [Final-prompt run](../evals/baselines/2026-11-17-final.md): **6/6**, 45 calls; all non-passes were
+  provider 429/503 (free-tier 15 requests/minute), fixed by running cases one at a time. Each case
+  passed once: not a statistical reliability claim.
 - Last full gate: **271 tests, 99.44% source coverage**; same checks passed with the CI Hypothesis
   profile. Local/static integrity tests, corruption tests and real graph execution are separate evidence.
 

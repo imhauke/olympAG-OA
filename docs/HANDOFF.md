@@ -8,8 +8,9 @@ Continue only on `main`; the human stages/commits/pushes. No live calls without 
 - CLI: `inspect`, `edit`, `verify`; explicit LangGraph with clarification, validation, review,
   bounded reset/feedback and separate output/report publication.
 - Native Gemini `gemini-3.5-flash-lite`, medium thinking, tested live. Anthropic is optional/unverified.
-- Three real synthetic sample outputs. Eval evidence: initial 5/6 plus targeted 1/1, not a
-  final-version full-suite 6/6. See [baseline](../evals/baselines/2026-11-17.md).
+- Three real synthetic sample outputs. Eval evidence: first baseline 5/6 + targeted 1/1; final prompt
+  6/6 (each case passed once, run case by case on the free tier). See
+  [final](../evals/baselines/2026-11-17-final.md) and [first](../evals/baselines/2026-11-17.md) baselines.
 - Last gate: `HYPOTHESIS_PROFILE=ci make check` — 271 tests, 99.44% source coverage.
   Passed on macOS and a clean Linux container with locked dependencies; original CI failure reproduced.
   Cleanup verification also passed sample reproducibility, CLI integrity and eval plan (no live calls).

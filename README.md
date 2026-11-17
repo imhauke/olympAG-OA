@@ -4,7 +4,7 @@ Python/LangGraph agent for instruction-driven `.docx` edits: insert, replace, de
 existing paragraph styles while preserving unaffected content and formatting.
 
 [Deutsch](README.de.md) · [Architecture & integrity](docs/ARCHITECTURE.md) ·
-[AI development workflow](docs/DEVELOPMENT.md) · [Measured eval results](evals/baselines/2026-11-17.md)
+[AI development workflow](docs/DEVELOPMENT.md) · [Measured eval results](evals/baselines/2026-11-17-final.md)
 
 ## Run
 
@@ -117,6 +117,8 @@ uv run python -m evals.run --live --max-calls 36 --retry-unavailable
 
 Six synthetic cases; hard shared call budget; optional single 503 resume per case inside that
 budget. GitHub evals are `workflow_dispatch` only. [Runner details](evals/README.md).
-Measured baseline: **5/6 initially**, then **1/1** on the failed ambiguity case after a prompt
-fix; **30 calls total**. The other five were not rerun under the final prompt: no final-version
-6/6 or general reliability claim. [Evidence](evals/baselines/2026-11-17.md).
+Measured: first baseline **5/6**, then a prompt fix for the ambiguity case. Under the final
+prompt **all 6/6 cases passed** (45 Gemini calls, run case by case because the free tier allows
+15 requests/minute; every non-pass was a provider 429/503). Each case passed once: not a
+measured pass rate. [Final evidence](evals/baselines/2026-11-17-final.md) ·
+[first baseline](evals/baselines/2026-11-17.md).
