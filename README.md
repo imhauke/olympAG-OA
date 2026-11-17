@@ -21,15 +21,17 @@ On macOS, keep the checkout outside iCloud: it can hide editable-install files a
 Use the privately supplied review `.env`, or copy `.env.example` to `.env` and set:
 
 ```dotenv
-GEMINI_API_KEY=your_key
-DOCX_AGENT_MODEL=gemini-3.5-flash-lite
+GEMINI_API_KEY=your_key            # default provider (google_genai)
+ANTHROPIC_API_KEY=your_key         # optional: --provider anthropic (Claude Sonnet 5.5)
 DOCX_AGENT_MAX_TURNS=5
 DOCX_AGENT_MAX_RETRIES=0
 ```
 
-The courtesy key is supplied privately for seven days from the stated handover time; the
-owner must revoke it at expiry. There is no application-side expiry. Afterward, use your own
-[Gemini key](https://aistudio.google.com/apikey). Never commit `.env`.
+The review `.env` contains courtesy **Gemini and Anthropic** keys, supplied privately and valid
+for seven days from 2026-11-17 (until 2026-11-24); the owner revokes both at expiry. There is no
+application-side expiry. Afterward, use your own [Gemini](https://aistudio.google.com/apikey) or
+Anthropic key. Never commit `.env`. With Claude:
+`uv run docx-agent edit ... --provider anthropic` (defaults to `claude-sonnet-5-5`).
 
 ```sh
 mkdir -p out
@@ -82,8 +84,8 @@ docx-agent verify BEFORE.docx AFTER.docx [--json]
 - `--dry-run` still calls the model but writes no files. `--report PATH.json` sets the report
   path; otherwise `result.docx` produces `result.report.json`.
 - `--model`/`--provider` override settings. Environment variables override `.env`. See
-  `.env.example` and `uv run docx-agent edit --help` for options. Native Gemini is live-tested;
-  optional Anthropic support is not. SDK retries are disabled; there is no provider fallback.
+  `.env.example` and `uv run docx-agent edit --help` for options. Both providers are live-tested:
+  Gemini by the evals and samples, Claude Sonnet 5.5 by a smoke edit (`verify` OK). SDK retries are disabled; there is no provider fallback.
 - Exit codes: 0 success; 1 failed checks/model call; 2 invalid input/configuration or I/O;
   3 non-interactive clarification.
 

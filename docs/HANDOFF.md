@@ -7,7 +7,7 @@ Continue only on `main`; the human stages/commits/pushes. No live calls without 
 
 - CLI: `inspect`, `edit`, `verify`; explicit LangGraph with clarification, validation, review,
   bounded reset/feedback and separate output/report publication.
-- Native Gemini `gemini-3.5-flash-lite`, medium thinking, tested live. Anthropic is optional/unverified.
+- Native Gemini `gemini-3.5-flash-lite`, medium thinking, tested live. Claude Sonnet 5.5 (`--provider anthropic`) passed a live smoke edit (verify OK) on 2026-11-17.
 - Three real synthetic sample outputs. Eval evidence: first baseline 5/6 + targeted 1/1; final prompt
   6/6 (each case passed once, run case by case on the free tier). See
   [final](../evals/baselines/2026-11-17-final.md) and [first](../evals/baselines/2026-11-17.md) baselines.
@@ -35,8 +35,8 @@ Style edits use exact `style_changes` permissions; standalone `verify` has no st
 Ambiguity policy is prompt-based; a model can still guess. Checkpoints resume only in-process.
 
 `.env`, `.venv`, caches, `out/` and raw eval reports are local/ignored. Keep private documents
-out of fixtures. Courtesy access lasts seven days from the private handover timestamp; the
-owner must actually revoke the separate review key. No application expiry/scheduler exists.
+out of fixtures. Courtesy Gemini and Anthropic keys last seven days from 2026-11-17 (until 2026-11-24); the
+owner must actually revoke both review keys. No application expiry/scheduler exists.
 
 Known local issue: iCloud can hide editable-install `.pth` files. Keep the checkout outside
 cloud sync; `PYTHONPATH=src:. uv run ...` is a local workaround. Moving a venv requires reinstalling.

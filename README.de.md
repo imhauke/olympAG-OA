@@ -21,16 +21,17 @@ Unter macOS außerhalb von iCloud arbeiten: Versteckte Dateien der editierbaren 
 Privat bereitgestellte Review-`.env` verwenden oder `.env.example` nach `.env` kopieren und setzen:
 
 ```dotenv
-GEMINI_API_KEY=your_key
-DOCX_AGENT_MODEL=gemini-3.5-flash-lite
+GEMINI_API_KEY=your_key            # Standard-Anbieter (google_genai)
+ANTHROPIC_API_KEY=your_key         # optional: --provider anthropic (Claude Sonnet 5.5)
 DOCX_AGENT_MAX_TURNS=5
 DOCX_AGENT_MAX_RETRIES=0
 ```
 
-Der Testschlüssel wird privat für sieben Tage ab dem angegebenen Übergabezeitpunkt bereitgestellt;
-der Inhaber muss ihn danach widerrufen. Keine automatische Abschaltung durch die Anwendung.
-Anschließend einen eigenen [Gemini-Schlüssel](https://aistudio.google.com/apikey) verwenden.
-`.env` niemals committen.
+Die Review-`.env` enthält Test-Schlüssel für **Gemini und Anthropic**, privat bereitgestellt und
+sieben Tage ab dem 2026-11-17 gültig (bis 2026-11-24); der Inhaber widerruft beide danach. Keine
+automatische Abschaltung durch die Anwendung. Anschließend eigene
+[Gemini](https://aistudio.google.com/apikey)- oder Anthropic-Schlüssel verwenden. `.env` niemals
+committen. Mit Claude: `uv run docx-agent edit ... --provider anthropic` (Standard: `claude-sonnet-5-5`).
 
 ```sh
 mkdir -p out
@@ -87,8 +88,8 @@ docx-agent verify BEFORE.docx AFTER.docx [--json]
 - `--dry-run` ruft das Modell auf, schreibt aber keine Dateien. `--report PATH.json` wählt den
   Berichtspfad; sonst entsteht für `result.docx` die Datei `result.report.json`.
 - `--model`/`--provider` überschreiben Einstellungen. Umgebungsvariablen haben Vorrang vor `.env`.
-  Weitere Optionen: `.env.example` und `uv run docx-agent edit --help`. Gemini ist live geprüft;
-  optionale Anthropic-Unterstützung nicht. Keine SDK-Wiederholungen oder Anbieter-Fallbacks.
+  Weitere Optionen: `.env.example` und `uv run docx-agent edit --help`. Beide Anbieter sind live geprüft:
+  Gemini durch Evals und Beispiele, Claude Sonnet 5.5 durch eine Testbearbeitung (`verify` OK). Keine SDK-Wiederholungen oder Anbieter-Fallbacks.
 - Rückgabecodes: 0 Erfolg; 1 fehlgeschlagene Prüfung/Modellaufruf; 2 ungültige Eingabe/Konfiguration
   oder Dateifehler; 3 Rückfrage im nicht interaktiven Modus.
 
